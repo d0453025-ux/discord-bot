@@ -106,12 +106,12 @@ async def normal_prices(interaction: discord.Interaction):
 
 @tree.command(name="turf_prices", description="Show turf prices")
 async def turf_prices(interaction: discord.Interaction):
-    embed = discord.Embed(description=TURF_PRICES, color=discord.Color(0x808080))
+    embed = discord.Embed(description=TURF_PRICES, color=discord.Color(0x000000))
     await interaction.response.send_message(embed=embed)
 
 @tree.command(name="game_links", description="Show game and links")
 async def game_links(interaction: discord.Interaction):
-    embed = discord.Embed(description=GAME_AND_LINKS, color=discord.Color(0xFFFFFF))
+    embed = discord.Embed(description=GAME_AND_LINKS, color=discord.Color(0x000000))
     await interaction.response.send_message(embed=embed)
 
 @bot.event
@@ -126,13 +126,13 @@ async def on_reaction_add(reaction, user):
         except:
             pass
     elif reaction.emoji == "2️⃣":
-        embed = discord.Embed(description=TURF_PRICES, color=discord.Color(0x808080))
+        embed = discord.Embed(description=TURF_PRICES, color=discord.Color(0x000000))
         try:
             await user.send(embed=embed)
         except:
             pass
     elif reaction.emoji == "3️⃣":
-        embed = discord.Embed(description=GAME_AND_LINKS, color=discord.Color(0xFFFFFF))
+        embed = discord.Embed(description=GAME_AND_LINKS, color=discord.Color(0x000000))
         try:
             await user.send(embed=embed)
         except:

@@ -1,5 +1,7 @@
 import discord
 import os
+import asyncio
+import random
 from discord import app_commands
 
 # Bot setup
@@ -137,6 +139,51 @@ async def on_reaction_add(reaction, user):
             await user.send(embed=embed)
         except:
             pass
+
+@tree.command(name="giveaway", description="Start a giveaway")
+@app_commands.describe(
+    prize="What are you giving away?",
+    minutes="How long should the giveaway last (in minutes)?",
+    winners="How many winners? (default: 1)"
+)
+async def giveaway(interaction: discord.Interaction, prize: str, minutes: int, winners: int = 1):
+    end_time = discord.utils.utcnow().timestamp() + (minutes * 60)
+
+    embed = discord.Embed(
+        title="🎉 GIVEAWAY 🎉",
+        description=f"**Prize:** {prize}\n\nReact with 🎉 to enter!\n\n**Winners:** {winners}\n**Ends:** <t:{int(end_time)}:R>",
+        color=discord.Color(0x808080)
+    )
+    embed.set_footer(text=f"Hosted by {interaction.user.display_name}")
+
+    await interaction.response.send_message(embed=embed)
+    message = await interaction.original_response()
+    await message.add_reaction("🎉")
+
+    await asyncio.sleep(minutes * 60)
+
+    message = await interaction.channel.fetch_message(message.id)
+    reaction = discord.utils.get(message.reactions, emoji="🎉")
+
+    if reaction is None or reaction.count <= 1:
+        await interaction.channel.send("❌ Not enough people entered the giveaway!")
+        return
+
+    users = [u async for u in reaction.users() if not u.bot]
+
+    if len(users) < winners:
+        winners = len(users)
+
+    picked = random.sample(users, winners)
+    winner_mentions = ", ".join(w.mention for w in picked)
+
+    result_embed = discord.Embed(
+        title="🎉 GIVEAWAY ENDED 🎉",
+        description=f"**Prize:** {prize}\n\n🏆 **Winner(s):** {winner_mentions}\n\nCongratulations!",
+        color=discord.Color(0x808080)
+    )
+    await interaction.channel.send(embed=result_embed)
+    await interaction.channel.send(f"🎉 Congrats {winner_mentions}! You won **{prize}**!")
 
 token = os.environ.get("DISCORD_TOKEN")
 if not token:

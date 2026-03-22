@@ -1,0 +1,330 @@
+# ========== DATABASE FILE ==========
+DATA_FILE = "data.json"
+
+def get_data():
+    if not os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "w") as f:
+            json.dump({}, f)
+    with open(DATA_FILE, "r") as f:
+        return json.load(f)
+
+def save_data(data):
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+# ========== TOKEN FUNCTIONS ==========
+def add_tokens(user_id, amount):
+    data = get_data()
+    user_id = str(user_id)
+    if user_id not in data:
+        data[user_id] = {"tokens": 0, "last_daily": None, "daily_streak": 0}
+    data[user_id]["tokens"] += amount
+    save_data(data)
+
+def remove_tokens(user_id, amount):
+    data = get_data()
+    user_id = str(user_id)
+    if user_id not in data:
+        data[user_id] = {"tokens": 0, "last_daily": None, "daily_streak": 0}
+    data[user_id]["tokens"] = max(0, data[user_id]["tokens"] - amount)
+    save_data(data)
+
+def get_tokens(user_id):
+    data = get_data()
+    user_id = str(user_id)
+    if user_id not in data:
+        data[user_id] = {"tokens": 0, "last_daily": None, "daily_streak": 0}
+        save_data(data)
+    return data[user_id].get("tokens", 0)
+
+def set_daily(user_id, streak):
+    data = get_data()
+    user_id = str(user_id)
+    if user_id not in data:
+        data[user_id] = {"tokens": 0, "last_daily": None, "daily_streak": 0}
+    data[user_id]["last_daily"] = datetime.now().isoformat()
+    data[user_id]["daily_streak"] = streak
+    save_data(data)
+
+def get_daily_streak(user_id):
+    data = get_data()
+    user_id = str(user_id)
+    if user_id not in data:
+        return 0
+    last_daily = data[user_id].get("last_daily")
+    if not last_daily:
+        return 0
+    last_time = datetime.fromisoformat(last_daily)
+    if datetime.now() - last_time < timedelta(days=1):
+        return data[user_id].get("daily_streak", 0)
+    return 0
+
+# ========== ROLE ASSIGNMENT ==========
+async def check_token_roles(member):
+    """Give roles based on token amount"""
+    tokens = get_tokens(member.id)
+    guild = member.guild
+    
+    role_map = {
+        1000000: "Rich MF",
+        25000: "Daily Active",
+        10000: "Rising",
+        5000: "Just Starting"
+    }
+    
+    for token_amount, role_name in role_map.items():
+        role = discord.utils.get(guild.roles, name=role_name)
+        if role:
+            if tokens >= token_amount:
+                if role not in member.roles:
+                    try:
+                        await member.add_roles(role)
+                    except:
+                        pass
+            else:
+                if role in member.roles:
+                    try:
+                        await member.remove_roles(role)
+                    except:
+                        pass
+
+# ========== TOKEN ECONOMY COMMANDS ==========
+
+@bot.command(name="beg")
+async def beg(ctx):
+    """Get random tokens"""
+    amount = random.randint(50, 500)
+    add_tokens(ctx.author.id, amount)
+    await check_token_roles(ctx.author)
+    
+    embed = discord.Embed(
+        description=f"🎁 {ctx.author.mention} begged and got **{amount}** tokens!",
+        color=discord.Color.gold()
+    )
+    embed.set_footer(text=f"Total: {get_tokens(ctx.author.id)} tokens")
+    await ctx.send(embed=embed)
+
+@bot.command(name="daily")
+async def daily(ctx):
+    """Get daily reward"""
+    streak = get_daily_streak(ctx.author.id)
+    
+    if streak > 0:
+        await ctx.send(f"❌ You already claimed your daily! Come back tomorrow.")
+        return
+    
+    new_streak = streak + 1
+    amount = 100 + (new_streak - 1)  # 100, 101, 102...
+    
+    add_tokens(ctx.author.id, amount)
+    set_daily(ctx.author.id, new_streak)
+    await check_token_roles(ctx.author)
+    
+    embed = discord.Embed(
+        description=f"📅 {ctx.author.mention} claimed daily reward! **{amount}** tokens",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="Streak", value=f"🔥 {new_streak} day(s)", inline=False)
+    embed.set_footer(text=f"Total: {get_tokens(ctx.author.id)} tokens")
+    await ctx.send(embed=embed)
+
+@bot.command(name="roll")
+async def roll(ctx, bet: int = None):
+    """50/50 gamble with tokens"""
+    if bet is None:
+        await ctx.send("❌ Usage: `!roll <amount>`")
+        return
+    
+    tokens = get_tokens(ctx.author.id)
+    if tokens < bet:
+        await ctx.send(f"❌ You don't have enough tokens! You have {tokens} tokens.")
+        return
+    
+    if bet <= 0:
+        await ctx.send("❌ Bet must be more than 0!")
+        return
+    
+    result = random.choice([True, False])
+    
+    if result:
+        add_tokens(ctx.author.id, bet)
+        embed = discord.Embed(
+            description=f"🎲 {ctx.author.mention} WON! +**{bet}** tokens!",
+            color=discord.Color.green()
+        )
+    else:
+        remove_tokens(ctx.author.id, bet)
+        embed = discord.Embed(
+            description=f"🎲 {ctx.author.mention} LOST! -{bet} tokens!",
+            color=discord.Color.red()
+        )
+    
+    embed.set_footer(text=f"Total: {get_tokens(ctx.author.id)} tokens")
+    await ctx.send(embed=embed)
+    await check_token_roles(ctx.author)
+
+@bot.command(name="steal")
+async def steal(ctx, member: discord.Member = None):
+    """Steal 10-200 tokens (40% success, need 5k+ tokens)"""
+    if member is None:
+        await ctx.send("❌ Usage: `!steal <@user>`")
+        return
+    
+    if member.id == ctx.author.id:
+        await ctx.send("❌ You can't steal from yourself!")
+        return
+    
+    tokens = get_tokens(ctx.author.id)
+    if tokens < 5000:
+        await ctx.send(f"❌ You need at least 5,000 tokens to steal! You have {tokens}.")
+        return
+    
+    success_chance = random.randint(1, 100)
+    
+    if success_chance <= 40:  # 40% success
+        amount = random.randint(10, 200)
+        remove_tokens(member.id, amount)
+        add_tokens(ctx.author.id, amount)
+        
+        embed = discord.Embed(
+            description=f"🔓 {ctx.author.mention} successfully stole **{amount}** tokens from {member.mention}!",
+            color=discord.Color.purple()
+        )
+    else:
+        embed = discord.Embed(
+            description=f"🔒 {ctx.author.mention} tried to steal but FAILED! {member.mention} caught them!",
+            color=discord.Color.red()
+        )
+    
+    await ctx.send(embed=embed)
+    await check_token_roles(ctx.author)
+
+@bot.command(name="balance")
+async def balance(ctx, member: discord.Member = None):
+    """Check token balance"""
+    if member is None:
+        member = ctx.author
+    
+    tokens = get_tokens(member.id)
+    embed = discord.Embed(
+        description=f"{member.mention} has **{tokens}** tokens",
+        color=discord.Color.gold()
+    )
+    await ctx.send(embed=embed)
+
+# ========== LEADERBOARD COMMANDS ==========
+
+@bot.command(name="tokens-leaderboard")
+async def tokens_leaderboard(ctx):
+    """Shows top token earners"""
+    data = get_data()
+    
+    if not data:
+        await ctx.send("❌ No data yet!")
+        return
+    
+    sorted_users = sorted(data.items(), key=lambda x: x[1].get("tokens", 0), reverse=True)[:10]
+    
+    leaderboard = "**💰 TOKEN LEADERBOARD 💰**\n\n"
+    for idx, (user_id, user_data) in enumerate(sorted_users, 1):
+        tokens = user_data.get("tokens", 0)
+        leaderboard += f"{idx}. <@{user_id}> - **{tokens}** tokens\n"
+    
+    embed = discord.Embed(description=leaderboard, color=discord.Color.gold())
+    await ctx.send(embed=embed)
+
+@bot.command(name="invites-leaderboard")
+async def invites_leaderboard(ctx):
+    """Shows top inviters"""
+    guild = ctx.guild
+    invite_data = {}
+    
+    try:
+        invites = await guild.invites()
+        for invite in invites:
+            if invite.inviter:
+                invite_data[invite.inviter.id] = invite_data.get(invite.inviter.id, 0) + invite.uses
+    except:
+        await ctx.send("❌ Can't access invites!")
+        return
+    
+    if not invite_data:
+        await ctx.send("❌ No invites yet!")
+        return
+    
+    sorted_inviters = sorted(invite_data.items(), key=lambda x: x[1], reverse=True)[:10]
+    
+    leaderboard = "**👥 INVITES LEADERBOARD 👥**\n\n"
+    for idx, (user_id, invites_count) in enumerate(sorted_inviters, 1):
+        leaderboard += f"{idx}. <@{user_id}> - **{invites_count}** invites\n"
+    
+    embed = discord.Embed(description=leaderboard, color=discord.Color.purple())
+    await ctx.send(embed=embed)
+
+@bot.event
+async def on_member_join(member):
+    """Assign invite roles when member joins"""
+    await asyncio.sleep(1)  # Wait for invite count to update
+    
+    guild = member.guild
+    invite_data = {}
+    
+    try:
+        invites = await guild.invites()
+        for invite in invites:
+            if invite.inviter:
+                invite_data[invite.inviter.id] = invite_data.get(invite.inviter.id, 0) + invite.uses
+    except:
+        return
+    
+    # Invite role assignments
+    invite_roles = {
+        100: 1483938598050070712,  # 100+
+        50: 1483938384132051186,   # 50+
+        30: 1483937935391850496,   # 30+
+        20: 1483937466560806943,   # 20+
+        12: 1483936757023117452,   # 12+
+        6: 1449371784037142609,    # 6
+        3: 1449371710368256172,    # 3
+    }
+    
+    for inviter_id, invite_count in invite_data.items():
+        inviter = guild.get_member(inviter_id)
+        if not inviter:
+            continue
+        
+        for threshold, role_id in sorted(invite_roles.items(), reverse=True):
+            if invite_count >= threshold:
+                role = guild.get_role(role_id)
+                if role and role not in inviter.roles:
+                    try:
+                        await inviter.add_roles(role)
+                    except:
+                        pass
+                break
+
+@bot.command(name="help")
+async def help_command(ctx):
+    """Shows all commands"""
+    embed = discord.Embed(title="📚 BOT COMMANDS", color=discord.Color.blue())
+    
+    embed.add_field(name="💰 TOKENS", value="""
+`!beg` - Get random tokens
+`!daily` - Daily reward (100 + streak)
+`!roll <amount>` - 50/50 gamble
+`!steal <@user>` - Steal 10-200 tokens (need 5k+, 40% success)
+`!balance [@user]` - Check token balance
+""", inline=False)
+    
+    embed.add_field(name="📊 LEADERBOARDS", value="""
+`!tokens-leaderboard` - Top token earners
+`!invites-leaderboard` - Top inviters
+""", inline=False)
+    
+    embed.add_field(name="🛒 PRICES", value="""
+`!prices` - Normal shop prices
+`!turf` - Turf shop prices
+`!links` - Game & Discord links
+""", inline=False)
+    
+    await ctx.send(embed=embed)

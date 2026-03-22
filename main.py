@@ -3,11 +3,13 @@ import os
 import asyncio
 import random
 import time
-import datetime
+import json
+from datetime import datetime, timedelta
 from discord import app_commands
 
 # Bot setup
 intents = discord.Intents.default()
+intents.members = True
 bot = discord.Client(intents=intents)
 tree = app_commands.CommandTree(bot)
 
@@ -26,6 +28,91 @@ warnings_db = {}
 
 # Bot start time for uptime tracking
 START_TIME = None
+
+# ========== DATABASE ==========
+DATA_FILE = "data.json"
+
+def get_data():
+    if not os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "w") as f:
+            json.dump({}, f)
+    with open(DATA_FILE, "r") as f:
+        return json.load(f)
+
+def save_data(data):
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+def add_tokens(user_id, amount):
+    data = get_data()
+    uid = str(user_id)
+    if uid not in data:
+        data[uid] = {"tokens": 0, "last_daily": None, "daily_streak": 0}
+    data[uid]["tokens"] += amount
+    save_data(data)
+
+def remove_tokens(user_id, amount):
+    data = get_data()
+    uid = str(user_id)
+    if uid not in data:
+        data[uid] = {"tokens": 0, "last_daily": None, "daily_streak": 0}
+    data[uid]["tokens"] = max(0, data[uid]["tokens"] - amount)
+    save_data(data)
+
+def get_tokens(user_id):
+    data = get_data()
+    uid = str(user_id)
+    if uid not in data:
+        data[uid] = {"tokens": 0, "last_daily": None, "daily_streak": 0}
+        save_data(data)
+    return data[uid].get("tokens", 0)
+
+def set_daily(user_id, streak):
+    data = get_data()
+    uid = str(user_id)
+    if uid not in data:
+        data[uid] = {"tokens": 0, "last_daily": None, "daily_streak": 0}
+    data[uid]["last_daily"] = datetime.now().isoformat()
+    data[uid]["daily_streak"] = streak
+    save_data(data)
+
+def get_daily_streak(user_id):
+    data = get_data()
+    uid = str(user_id)
+    if uid not in data:
+        return 0
+    last_daily = data[uid].get("last_daily")
+    if not last_daily:
+        return 0
+    last_time = datetime.fromisoformat(last_daily)
+    if datetime.now() - last_time < timedelta(days=1):
+        return data[uid].get("daily_streak", 0)
+    return 0
+
+async def check_token_roles(member):
+    tokens = get_tokens(member.id)
+    guild = member.guild
+    role_map = {
+        1000000: "Rich MF",
+        25000: "Daily Active",
+        10000: "Rising",
+        5000: "Just Starting"
+    }
+    for token_amount, role_name in role_map.items():
+        role = discord.utils.get(guild.roles, name=role_name)
+        if role:
+            if tokens >= token_amount:
+                if role not in member.roles:
+                    try:
+                        await member.add_roles(role)
+                    except:
+                        pass
+            else:
+                if role in member.roles:
+                    try:
+                        await member.remove_roles(role)
+                    except:
+                        pass
 
 # 8Ball responses
 EIGHT_BALL_RESPONSES = [
@@ -478,6 +565,7 @@ async def help_command(interaction: discord.Interaction):
     embed.add_field(name="💰 Price Commands", value="`/prices` `/shop` `/turf_prices` `/game_links`", inline=False)
     embed.add_field(name="📊 Server Info", value="`/serverinfo` `/roleinfo` `/userinfo` `/roles` `/invites`", inline=False)
     embed.add_field(name="🎮 Fun", value="`/8ball` `/dice` `/coinflip` `/rps` `/say`", inline=False)
+    embed.add_field(name="🪙 Tokens", value="`/beg` `/daily` `/roll` `/steal` `/balance` `/tokens_leaderboard` `/invites_leaderboard`", inline=False)
     embed.add_field(name="🛡️ Moderation (Staff only)", value="`/kick` `/ban` `/mute` `/unmute` `/warn` `/warnings` `/giveaway` `/poll`", inline=False)
     embed.add_field(name="❓ Info", value="`/help` `/ping` `/botinfo`", inline=False)
     await interaction.response.send_message(embed=embed)
@@ -499,6 +587,170 @@ async def botinfo(interaction: discord.Interaction):
     embed.add_field(name="🌍 Servers", value=len(bot.guilds))
     embed.add_field(name="📡 Latency", value=f"{round(bot.latency * 1000)}ms")
     await interaction.response.send_message(embed=embed)
+
+# ── TOKEN ECONOMY ─────────────────────────────────────────────────────────────
+
+@tree.command(name="beg", description="Beg for some tokens")
+async def beg(interaction: discord.Interaction):
+    amount = random.randint(50, 500)
+    add_tokens(interaction.user.id, amount)
+    if isinstance(interaction.user, discord.Member):
+        await check_token_roles(interaction.user)
+    embed = discord.Embed(
+        description=f"🎁 {interaction.user.mention} begged and got **{amount}** tokens!",
+        color=discord.Color(0x808080)
+    )
+    embed.set_footer(text=f"Total: {get_tokens(interaction.user.id)} tokens")
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name="daily", description="Claim your daily token reward")
+async def daily(interaction: discord.Interaction):
+    streak = get_daily_streak(interaction.user.id)
+    if streak > 0:
+        await interaction.response.send_message("❌ You already claimed your daily! Come back tomorrow.", ephemeral=True)
+        return
+    new_streak = streak + 1
+    amount = 100 + (new_streak - 1)
+    add_tokens(interaction.user.id, amount)
+    set_daily(interaction.user.id, new_streak)
+    if isinstance(interaction.user, discord.Member):
+        await check_token_roles(interaction.user)
+    embed = discord.Embed(
+        description=f"📅 {interaction.user.mention} claimed daily reward! **{amount}** tokens",
+        color=discord.Color(0x808080)
+    )
+    embed.add_field(name="Streak", value=f"🔥 {new_streak} day(s)", inline=False)
+    embed.set_footer(text=f"Total: {get_tokens(interaction.user.id)} tokens")
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name="roll", description="Gamble your tokens (50/50)")
+@app_commands.describe(bet="Amount of tokens to bet")
+async def roll(interaction: discord.Interaction, bet: int):
+    tokens = get_tokens(interaction.user.id)
+    if bet <= 0:
+        await interaction.response.send_message("❌ Bet must be more than 0!", ephemeral=True)
+        return
+    if tokens < bet:
+        await interaction.response.send_message(f"❌ You don't have enough tokens! You have **{tokens}**.", ephemeral=True)
+        return
+    result = random.choice([True, False])
+    if result:
+        add_tokens(interaction.user.id, bet)
+        embed = discord.Embed(description=f"🎲 {interaction.user.mention} **WON!** +**{bet}** tokens!", color=discord.Color(0x808080))
+    else:
+        remove_tokens(interaction.user.id, bet)
+        embed = discord.Embed(description=f"🎲 {interaction.user.mention} **LOST!** -{bet} tokens!", color=discord.Color(0x808080))
+    embed.set_footer(text=f"Total: {get_tokens(interaction.user.id)} tokens")
+    await interaction.response.send_message(embed=embed)
+    if isinstance(interaction.user, discord.Member):
+        await check_token_roles(interaction.user)
+
+@tree.command(name="steal", description="Try to steal tokens from someone (need 5,000+, 40% success)")
+@app_commands.describe(member="Who to steal from")
+async def steal(interaction: discord.Interaction, member: discord.Member):
+    if member.id == interaction.user.id:
+        await interaction.response.send_message("❌ You can't steal from yourself!", ephemeral=True)
+        return
+    tokens = get_tokens(interaction.user.id)
+    if tokens < 5000:
+        await interaction.response.send_message(f"❌ You need at least **5,000** tokens to steal! You have {tokens}.", ephemeral=True)
+        return
+    if random.randint(1, 100) <= 40:
+        amount = random.randint(10, 200)
+        remove_tokens(member.id, amount)
+        add_tokens(interaction.user.id, amount)
+        embed = discord.Embed(
+            description=f"🔓 {interaction.user.mention} successfully stole **{amount}** tokens from {member.mention}!",
+            color=discord.Color(0x808080)
+        )
+    else:
+        embed = discord.Embed(
+            description=f"🔒 {interaction.user.mention} tried to steal but **FAILED!** {member.mention} caught them!",
+            color=discord.Color(0x808080)
+        )
+    await interaction.response.send_message(embed=embed)
+    if isinstance(interaction.user, discord.Member):
+        await check_token_roles(interaction.user)
+
+@tree.command(name="balance", description="Check your token balance (or someone else's)")
+@app_commands.describe(member="Member to check (leave empty for yourself)")
+async def balance(interaction: discord.Interaction, member: discord.Member = None):
+    member = member or interaction.user
+    tokens = get_tokens(member.id)
+    embed = discord.Embed(
+        description=f"💰 {member.mention} has **{tokens}** tokens",
+        color=discord.Color(0x808080)
+    )
+    await interaction.response.send_message(embed=embed)
+
+# ── LEADERBOARDS ──────────────────────────────────────────────────────────────
+
+@tree.command(name="tokens_leaderboard", description="Show the top token earners")
+async def tokens_leaderboard(interaction: discord.Interaction):
+    data = get_data()
+    if not data:
+        await interaction.response.send_message("❌ No data yet!", ephemeral=True)
+        return
+    sorted_users = sorted(data.items(), key=lambda x: x[1].get("tokens", 0), reverse=True)[:10]
+    lines = [f"{i+1}. <@{uid}> — **{udata.get('tokens', 0)}** tokens" for i, (uid, udata) in enumerate(sorted_users)]
+    embed = discord.Embed(title="💰 TOKEN LEADERBOARD", description="\n".join(lines), color=discord.Color(0x808080))
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name="invites_leaderboard", description="Show the top inviters")
+async def invites_leaderboard(interaction: discord.Interaction):
+    try:
+        server_invites = await interaction.guild.invites()
+    except discord.Forbidden:
+        await interaction.response.send_message("❌ I need **Manage Guild** permission to view invites.", ephemeral=True)
+        return
+    invite_data = {}
+    for inv in server_invites:
+        if inv.inviter:
+            invite_data[inv.inviter.id] = invite_data.get(inv.inviter.id, 0) + inv.uses
+    if not invite_data:
+        await interaction.response.send_message("❌ No invites yet!", ephemeral=True)
+        return
+    sorted_inviters = sorted(invite_data.items(), key=lambda x: x[1], reverse=True)[:10]
+    lines = [f"{i+1}. <@{uid}> — **{count}** invites" for i, (uid, count) in enumerate(sorted_inviters)]
+    embed = discord.Embed(title="👥 INVITES LEADERBOARD", description="\n".join(lines), color=discord.Color(0x808080))
+    await interaction.response.send_message(embed=embed)
+
+# ── MEMBER JOIN (invite role tracking) ───────────────────────────────────────
+
+@bot.event
+async def on_member_join(member):
+    await asyncio.sleep(1)
+    guild = member.guild
+    invite_data = {}
+    try:
+        server_invites = await guild.invites()
+        for inv in server_invites:
+            if inv.inviter:
+                invite_data[inv.inviter.id] = invite_data.get(inv.inviter.id, 0) + inv.uses
+    except:
+        return
+    invite_roles = {
+        100: 1483938598050070712,
+        50: 1483938384132051186,
+        30: 1483937935391850496,
+        20: 1483937466560806943,
+        12: 1483936757023117452,
+        6: 1449371784037142609,
+        3: 1449371710368256172,
+    }
+    for inviter_id, invite_count in invite_data.items():
+        inviter = guild.get_member(inviter_id)
+        if not inviter:
+            continue
+        for threshold, role_id in sorted(invite_roles.items(), reverse=True):
+            if invite_count >= threshold:
+                role = guild.get_role(role_id)
+                if role and role not in inviter.roles:
+                    try:
+                        await inviter.add_roles(role)
+                    except:
+                        pass
+                break
 
 token = os.environ.get("DISCORD_TOKEN")
 if not token:

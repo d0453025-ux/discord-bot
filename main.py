@@ -73,10 +73,13 @@ Add-ons: neon underglow, custom rims, horn sounds
 """
 
 GAME_AND_LINKS = """
-**🎯 GAME & LINKS**
-🎮 Game Link: https://www.roblox.com/share?code=2ee1ff592f4e4843b7c6390da0f61844&type=ExperienceDetails&stamp=1771789166361
-👥 Roblox Group: https://www.roblox.com/share/g/628331601
-🪙 Discord Server: https://discord.gg/rpC8RahxHs
+### 🎯 GAME & LINKS
+
+### 🎮 [Roblox Game](https://www.roblox.com/share?code=2ee1ff592f4e4843b7c6390da0f61844&type=ExperienceDetails&stamp=1771789166361)
+
+### 👥 [Roblox Group](https://www.roblox.com/share/g/628331601)
+
+### 🪙 [Discord Server](https://discord.gg/rpC8RahxHs)
 """
 
 # ⬆️ EDIT ABOVE ⬆️
@@ -88,7 +91,7 @@ async def on_ready():
 
 @tree.command(name="prices", description="Show the price menu")
 async def prices(interaction: discord.Interaction):
-    embed = discord.Embed(title="📋 PRICE MENU", color=discord.Color.blue())
+    embed = discord.Embed(title="📋 PRICE MENU", color=discord.Color(0x000000))
     embed.description = "React to see prices:\n1️⃣ Normal Prices\n2️⃣ Turf Prices\n3️⃣ Game & Links"
     msg = await interaction.response.send_message(embed=embed)
     message = await interaction.original_response()
@@ -98,17 +101,17 @@ async def prices(interaction: discord.Interaction):
 
 @tree.command(name="shop", description="Show the shop with custom weapons and in-game items")
 async def normal_prices(interaction: discord.Interaction):
-    embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color.green())
+    embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color(0x000000))
     await interaction.response.send_message(embed=embed)
 
 @tree.command(name="turf_prices", description="Show turf prices")
 async def turf_prices(interaction: discord.Interaction):
-    embed = discord.Embed(description=TURF_PRICES, color=discord.Color.orange())
+    embed = discord.Embed(description=TURF_PRICES, color=discord.Color(0x808080))
     await interaction.response.send_message(embed=embed)
 
 @tree.command(name="game_links", description="Show game and links")
 async def game_links(interaction: discord.Interaction):
-    embed = discord.Embed(description=GAME_AND_LINKS, color=discord.Color.purple())
+    embed = discord.Embed(description=GAME_AND_LINKS, color=discord.Color(0xFFFFFF))
     await interaction.response.send_message(embed=embed)
 
 @bot.event
@@ -117,19 +120,19 @@ async def on_reaction_add(reaction, user):
         return
 
     if reaction.emoji == "1️⃣":
-        embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color.green())
+        embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color(0x000000))
         try:
             await user.send(embed=embed)
         except:
             pass
     elif reaction.emoji == "2️⃣":
-        embed = discord.Embed(description=TURF_PRICES, color=discord.Color.orange())
+        embed = discord.Embed(description=TURF_PRICES, color=discord.Color(0x808080))
         try:
             await user.send(embed=embed)
         except:
             pass
     elif reaction.emoji == "3️⃣":
-        embed = discord.Embed(description=GAME_AND_LINKS, color=discord.Color.purple())
+        embed = discord.Embed(description=GAME_AND_LINKS, color=discord.Color(0xFFFFFF))
         try:
             await user.send(embed=embed)
         except:

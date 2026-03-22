@@ -39,11 +39,42 @@ NORMAL_PRICES = """
 """
 
 TURF_PRICES = """
-**🏘️ TURF PRICES**
-🏠 Small Turf = 50,000 Robux
-🏠 Medium Turf = 100,000 Robux
-🏠 Large Turf = 250,000 Robux
-🏠 Massive Turf = 500,000 Robux
+**🏟️ TURF TYPES & AVAILABILITY**
+🏠 **Small Turf** — 300 Robux | 📦 5 Crates | 📊 5 Available
+┗ 2 Rooms: 🛋️ Main Area, 📦 Crate Room
+
+🏠 **Mid Turf** — 800 Robux | 📦 8 Crates | 📊 6 Available
+┗ 4 Rooms: 🏋️ Training Area, 🛋️ Main Area, 🎨 Custom Room, 📦 Crate Room
+
+🏢 **Big Turf** — 1,000 Robux | 📦 12 Crates | 📊 10 Available
+┗ 2 Levels: 🚪 Entry, 📦 Crates, 🎨 Custom Room, 😌 Chill Room, 🏋️ Training, 🥊 Boxing Arena
+
+🆓 **Free Turf** — 0 Robux | 📦 7 Crates | ❌ 0 Available (4 taken)
+┗ 4 Rooms: 🏋️ Training Area, 🛋️ Main Area, 🎨 Custom Room, 📦 Crate Room
+
+─────────────────────────
+🥊 **ARENA ROOM (Boxing / PvP)**
+Supports 1v1, 2v2, etc.
+Base Arena — 700 Robux
+Add-ons: extra crates, decorations, visual effects
+
+─────────────────────────
+🚗 **CAR DISPLAY / SHOWROOM**
+500–800 Robux per car slot
+Includes: paint, decals, lights
+Add-ons: neon underglow, custom rims, horn sounds
+
+─────────────────────────
+✨ **EXTRAS & ADD-ONS**
+📦 Extra Crate — 100 Robux
+🔤 Names on Walls — 25 Robux
+🎨 Custom Room — 250 Robux
+🎭 Special Turf Design / Theme — 150–300 Robux
+🪴 Extra Decorations — 50–150 Robux
+💨 Animated Effects (smoke, sparkles) — 75–200 Robux
+🎵 Exclusive Turf Music — 100–150 Robux
+🪧 Custom Turf Nameplate — 50–100 Robux
+📦 Extra Storage / Expansion Slot — 100–200 Robux
 """
 
 GAME_AND_LINKS = """

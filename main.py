@@ -34,8 +34,6 @@ NORMAL_PRICES = """
 💰 Small Cash (10k) — 50 Robux
 💰 Medium Cash (25k) — 120 Robux 🔥 HOT DEAL
 💰 Large Cash (50k) — 200 Robux ⭐ BEST VALUE
-⚡ XP Boost (2x 1h) — 100 Robux (stackable up to 6h)
-⚡ Weapon XP Boost (+50% 1h) — 120 Robux (stackable per weapon)
 """
 
 TURF_PRICES = """

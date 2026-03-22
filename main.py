@@ -1,4 +1,5 @@
 import discord
+import os
 from discord.ext import commands
 
 # Bot setup
@@ -87,4 +88,7 @@ async def on_reaction_add(reaction, user):
         except:
             pass
 
-bot.run("PASTE_YOUR_TOKEN_HERE")
+token = os.environ.get("DISCORD_TOKEN")
+if not token:
+    raise ValueError("DISCORD_TOKEN environment variable is not set. Please add your Discord bot token as a secret.")
+bot.run(token)

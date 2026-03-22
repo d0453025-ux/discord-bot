@@ -2,6 +2,8 @@ import discord
 import os
 import asyncio
 import random
+import time
+import datetime
 from discord import app_commands
 
 # Bot setup
@@ -18,6 +20,22 @@ def has_staff_role(interaction: discord.Interaction) -> bool:
     if isinstance(interaction.user, discord.Member):
         return any(r.name == STAFF_ROLE_NAME for r in interaction.user.roles)
     return False
+
+# Warnings storage (resets on bot restart)
+warnings_db = {}
+
+# Bot start time for uptime tracking
+START_TIME = None
+
+# 8Ball responses
+EIGHT_BALL_RESPONSES = [
+    "It is certain.", "It is decidedly so.", "Without a doubt.", "Yes, definitely.",
+    "You may rely on it.", "As I see it, yes.", "Most likely.", "Outlook good.",
+    "Yes.", "Signs point to yes.", "Reply hazy, try again.", "Ask again later.",
+    "Better not tell you now.", "Cannot predict now.", "Concentrate and ask again.",
+    "Don't count on it.", "My reply is no.", "My sources say no.",
+    "Outlook not so good.", "Very doubtful."
+]
 
 # ⬇️ EASY TO EDIT - Your Prices ⬇️
 
@@ -98,6 +116,8 @@ GAME_AND_LINKS = """
 
 @bot.event
 async def on_ready():
+    global START_TIME
+    START_TIME = time.time()
     await tree.sync()
     print(f"✅ Bot is ONLINE as {bot.user}")
 
@@ -272,6 +292,213 @@ async def giveaway(interaction: discord.Interaction, prize: str, minutes: int, w
     )
     await interaction.channel.send(embed=result_embed)
     await interaction.channel.send(f"🎉 Congrats {winner_mentions}! You won **{prize}**!")
+
+# ── SERVER INFO ──────────────────────────────────────────────────────────────
+
+@tree.command(name="serverinfo", description="Show server information")
+async def serverinfo(interaction: discord.Interaction):
+    guild = interaction.guild
+    embed = discord.Embed(title=f"📊 {guild.name}", color=discord.Color(0x808080))
+    embed.add_field(name="👥 Members", value=guild.member_count)
+    embed.add_field(name="📅 Created", value=f"<t:{int(guild.created_at.timestamp())}:D>")
+    embed.add_field(name="👑 Owner", value=f"<@{guild.owner_id}>")
+    embed.add_field(name="🎭 Roles", value=len(guild.roles))
+    embed.add_field(name="💬 Channels", value=len(guild.channels))
+    embed.add_field(name="🌍 Region", value="Automatic")
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name="roleinfo", description="Show info about a role")
+@app_commands.describe(role="The role to look up")
+async def roleinfo(interaction: discord.Interaction, role: discord.Role):
+    embed = discord.Embed(title=f"🎭 {role.name}", color=role.color)
+    embed.add_field(name="🎨 Color", value=str(role.color))
+    embed.add_field(name="📌 Mentionable", value="Yes" if role.mentionable else "No")
+    embed.add_field(name="🔼 Hoisted", value="Yes" if role.hoist else "No")
+    embed.add_field(name="📊 Position", value=role.position)
+    embed.add_field(name="🆔 ID", value=role.id)
+    embed.add_field(name="📅 Created", value=f"<t:{int(role.created_at.timestamp())}:D>")
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name="userinfo", description="Show info about a user")
+@app_commands.describe(member="The member to look up (leave empty for yourself)")
+async def userinfo(interaction: discord.Interaction, member: discord.Member = None):
+    member = member or interaction.user
+    roles = [r.mention for r in member.roles if r.name != "@everyone"]
+    embed = discord.Embed(title=f"👤 {member}", color=discord.Color(0x808080))
+    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.add_field(name="🆔 ID", value=member.id)
+    embed.add_field(name="📅 Joined Server", value=f"<t:{int(member.joined_at.timestamp())}:D>")
+    embed.add_field(name="🎂 Account Created", value=f"<t:{int(member.created_at.timestamp())}:D>")
+    embed.add_field(name="🎭 Roles", value=", ".join(roles) if roles else "None", inline=False)
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name="roles", description="List all roles in the server")
+async def roles(interaction: discord.Interaction):
+    guild = interaction.guild
+    role_list = [r.mention for r in reversed(guild.roles) if r.name != "@everyone"]
+    embed = discord.Embed(
+        title=f"🎭 Roles in {guild.name}",
+        description="\n".join(role_list) if role_list else "No roles",
+        color=discord.Color(0x808080)
+    )
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name="invites", description="Show server invites")
+async def invites(interaction: discord.Interaction):
+    try:
+        server_invites = await interaction.guild.invites()
+        if not server_invites:
+            await interaction.response.send_message("No active invites found.", ephemeral=True)
+            return
+        lines = [f"🔗 `{inv.code}` — by {inv.inviter.mention if inv.inviter else 'Unknown'} — **{inv.uses}** uses" for inv in server_invites]
+        embed = discord.Embed(title="📨 Server Invites", description="\n".join(lines), color=discord.Color(0x808080))
+        await interaction.response.send_message(embed=embed)
+    except discord.Forbidden:
+        await interaction.response.send_message("❌ I need **Manage Guild** permission to view invites.", ephemeral=True)
+
+# ── FUN COMMANDS ──────────────────────────────────────────────────────────────
+
+@tree.command(name="8ball", description="Ask the magic 8 ball a question")
+@app_commands.describe(question="Your yes/no question")
+async def eightball(interaction: discord.Interaction, question: str):
+    response = random.choice(EIGHT_BALL_RESPONSES)
+    embed = discord.Embed(title="🎱 Magic 8 Ball", color=discord.Color(0x808080))
+    embed.add_field(name="❓ Question", value=question, inline=False)
+    embed.add_field(name="💬 Answer", value=response, inline=False)
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name="dice", description="Roll a dice (1–6)")
+async def dice(interaction: discord.Interaction):
+    result = random.randint(1, 6)
+    await interaction.response.send_message(f"🎲 You rolled a **{result}**!")
+
+@tree.command(name="coinflip", description="Flip a coin")
+async def coinflip(interaction: discord.Interaction):
+    result = random.choice(["Heads", "Tails"])
+    await interaction.response.send_message(f"🪙 It's **{result}**!")
+
+@tree.command(name="rps", description="Play Rock Paper Scissors against the bot")
+@app_commands.describe(choice="rock, paper, or scissors")
+async def rps(interaction: discord.Interaction, choice: str):
+    choices = ["rock", "paper", "scissors"]
+    emojis = {"rock": "🪨", "paper": "📄", "scissors": "✂️"}
+    choice = choice.lower()
+    if choice not in choices:
+        await interaction.response.send_message("❌ Choose **rock**, **paper**, or **scissors**.", ephemeral=True)
+        return
+    bot_choice = random.choice(choices)
+    if choice == bot_choice:
+        result = "It's a **tie**! 🤝"
+    elif (choice == "rock" and bot_choice == "scissors") or \
+         (choice == "paper" and bot_choice == "rock") or \
+         (choice == "scissors" and bot_choice == "paper"):
+        result = "You **win**! 🎉"
+    else:
+        result = "You **lose**! 😔"
+    await interaction.response.send_message(f"You: {emojis[choice]}  vs  Bot: {emojis[bot_choice]}\n{result}")
+
+@tree.command(name="say", description="Make the bot say something (Staff only)")
+@app_commands.describe(message="What should the bot say?")
+async def say(interaction: discord.Interaction, message: str):
+    if not has_staff_role(interaction):
+        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
+        return
+    await interaction.response.send_message("✅ Sent!", ephemeral=True)
+    await interaction.channel.send(message)
+
+# ── MODERATION (extra) ────────────────────────────────────────────────────────
+
+@tree.command(name="mute", description="Timeout (mute) a member (Staff only)")
+@app_commands.describe(member="Member to mute", minutes="Duration in minutes (default 10)")
+async def mute(interaction: discord.Interaction, member: discord.Member, minutes: int = 10):
+    if not has_staff_role(interaction):
+        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role.", ephemeral=True)
+        return
+    try:
+        until = discord.utils.utcnow() + datetime.timedelta(minutes=minutes)
+        await member.timeout(until, reason=f"Muted by {interaction.user}")
+        embed = discord.Embed(title="🔇 Member Muted", description=f"**{member}** has been muted for **{minutes} minute(s)**.", color=discord.Color(0x808080))
+        await interaction.response.send_message(embed=embed)
+    except discord.Forbidden:
+        await interaction.response.send_message("❌ I don't have permission to timeout that member.", ephemeral=True)
+
+@tree.command(name="unmute", description="Remove timeout from a member (Staff only)")
+@app_commands.describe(member="Member to unmute")
+async def unmute(interaction: discord.Interaction, member: discord.Member):
+    if not has_staff_role(interaction):
+        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role.", ephemeral=True)
+        return
+    try:
+        await member.timeout(None, reason=f"Unmuted by {interaction.user}")
+        embed = discord.Embed(title="🔊 Member Unmuted", description=f"**{member}** has been unmuted.", color=discord.Color(0x808080))
+        await interaction.response.send_message(embed=embed)
+    except discord.Forbidden:
+        await interaction.response.send_message("❌ I don't have permission to unmute that member.", ephemeral=True)
+
+@tree.command(name="warn", description="Warn a member (Staff only)")
+@app_commands.describe(member="Member to warn", reason="Reason for the warning")
+async def warn(interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
+    if not has_staff_role(interaction):
+        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role.", ephemeral=True)
+        return
+    if member.id not in warnings_db:
+        warnings_db[member.id] = []
+    warnings_db[member.id].append({"reason": reason, "moderator": str(interaction.user)})
+    count = len(warnings_db[member.id])
+    embed = discord.Embed(
+        title="⚠️ Member Warned",
+        description=f"**{member}** has been warned.\n**Reason:** {reason}\n**Total warnings:** {count}",
+        color=discord.Color(0x808080)
+    )
+    await interaction.response.send_message(embed=embed)
+    try:
+        await member.send(f"⚠️ You have been warned in **{interaction.guild.name}**.\n**Reason:** {reason}\n**Total warnings:** {count}")
+    except:
+        pass
+
+@tree.command(name="warnings", description="Check a member's warnings (Staff only)")
+@app_commands.describe(member="Member to check")
+async def check_warnings(interaction: discord.Interaction, member: discord.Member):
+    if not has_staff_role(interaction):
+        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role.", ephemeral=True)
+        return
+    user_warns = warnings_db.get(member.id, [])
+    if not user_warns:
+        await interaction.response.send_message(f"✅ **{member}** has no warnings.", ephemeral=True)
+        return
+    lines = [f"{i+1}. {w['reason']} — by {w['moderator']}" for i, w in enumerate(user_warns)]
+    embed = discord.Embed(title=f"⚠️ Warnings for {member}", description="\n".join(lines), color=discord.Color(0x808080))
+    await interaction.response.send_message(embed=embed)
+
+# ── HELP / INFO ───────────────────────────────────────────────────────────────
+
+@tree.command(name="help", description="Show all available commands")
+async def help_command(interaction: discord.Interaction):
+    embed = discord.Embed(title="📖 BOT COMMANDS", color=discord.Color(0x808080))
+    embed.add_field(name="💰 Price Commands", value="`/prices` `/shop` `/turf_prices` `/game_links`", inline=False)
+    embed.add_field(name="📊 Server Info", value="`/serverinfo` `/roleinfo` `/userinfo` `/roles` `/invites`", inline=False)
+    embed.add_field(name="🎮 Fun", value="`/8ball` `/dice` `/coinflip` `/rps` `/say`", inline=False)
+    embed.add_field(name="🛡️ Moderation (Staff only)", value="`/kick` `/ban` `/mute` `/unmute` `/warn` `/warnings` `/giveaway` `/poll`", inline=False)
+    embed.add_field(name="❓ Info", value="`/help` `/ping` `/botinfo`", inline=False)
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name="ping", description="Check the bot's response speed")
+async def ping(interaction: discord.Interaction):
+    latency = round(bot.latency * 1000)
+    await interaction.response.send_message(f"🏓 Pong! Latency: **{latency}ms**")
+
+@tree.command(name="botinfo", description="Show bot information")
+async def botinfo(interaction: discord.Interaction):
+    uptime_seconds = int(time.time() - START_TIME) if START_TIME else 0
+    hours, remainder = divmod(uptime_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    uptime_str = f"{hours}h {minutes}m {seconds}s"
+    embed = discord.Embed(title="🤖 Bot Info", color=discord.Color(0x808080))
+    embed.add_field(name="🤖 Name", value=str(bot.user))
+    embed.add_field(name="⏱️ Uptime", value=uptime_str)
+    embed.add_field(name="🌍 Servers", value=len(bot.guilds))
+    embed.add_field(name="📡 Latency", value=f"{round(bot.latency * 1000)}ms")
+    await interaction.response.send_message(embed=embed)
 
 token = os.environ.get("DISCORD_TOKEN")
 if not token:

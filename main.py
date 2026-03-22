@@ -565,6 +565,7 @@ async def help_command(interaction: discord.Interaction):
     embed.add_field(name="💰 Price Commands", value="`/prices` `/shop` `/turf_prices` `/game_links`", inline=False)
     embed.add_field(name="📊 Server Info", value="`/serverinfo` `/roleinfo` `/userinfo` `/roles` `/invites`", inline=False)
     embed.add_field(name="🎮 Fun", value="`/8ball` `/dice` `/coinflip` `/rps` `/say`", inline=False)
+    embed.add_field(name="🏷️ Personal Prefix", value="`/setprefix` `/myprefix` `/checkprefix` `/removeprefix`", inline=False)
     embed.add_field(name="🪙 Tokens", value="`/beg` `/daily` `/roll` `/steal` `/balance` `/tokens_leaderboard` `/invites_leaderboard`", inline=False)
     embed.add_field(name="🛡️ Moderation (Staff only)", value="`/kick` `/ban` `/mute` `/unmute` `/warn` `/warnings` `/giveaway` `/poll`", inline=False)
     embed.add_field(name="❓ Info", value="`/help` `/ping` `/botinfo`", inline=False)
@@ -587,6 +588,95 @@ async def botinfo(interaction: discord.Interaction):
     embed.add_field(name="🌍 Servers", value=len(bot.guilds))
     embed.add_field(name="📡 Latency", value=f"{round(bot.latency * 1000)}ms")
     await interaction.response.send_message(embed=embed)
+
+# ── PERSONAL PREFIX ───────────────────────────────────────────────────────────
+
+def get_prefix(user_id):
+    data = get_data()
+    return data.get(str(user_id), {}).get("prefix", None)
+
+def save_prefix(user_id, prefix):
+    data = get_data()
+    uid = str(user_id)
+    if uid not in data:
+        data[uid] = {"tokens": 0, "last_daily": None, "daily_streak": 0}
+    data[uid]["prefix"] = prefix
+    save_data(data)
+
+def delete_prefix(user_id):
+    data = get_data()
+    uid = str(user_id)
+    if uid in data and "prefix" in data[uid]:
+        del data[uid]["prefix"]
+        save_data(data)
+
+@tree.command(name="setprefix", description="Set your personal prefix (e.g. Hc, Ez)")
+@app_commands.describe(prefix="Your personal prefix tag")
+async def setprefix(interaction: discord.Interaction, prefix: str):
+    if len(prefix) > 10:
+        await interaction.response.send_message("❌ Prefix must be 10 characters or less.", ephemeral=True)
+        return
+    save_prefix(interaction.user.id, prefix)
+    member = interaction.user
+    if isinstance(member, discord.Member):
+        base_name = member.display_name
+        # Strip existing prefix if present (format: "tag | name")
+        if " | " in base_name:
+            base_name = base_name.split(" | ", 1)[1]
+        new_nick = f"{prefix} | {base_name}"
+        try:
+            await member.edit(nick=new_nick)
+        except discord.Forbidden:
+            pass
+    embed = discord.Embed(
+        description=f"✅ Your personal prefix has been set to **{prefix}**!",
+        color=discord.Color(0x808080)
+    )
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name="myprefix", description="Check your personal prefix")
+async def myprefix(interaction: discord.Interaction):
+    prefix = get_prefix(interaction.user.id)
+    if not prefix:
+        await interaction.response.send_message("❌ You don't have a personal prefix set. Use `/setprefix` to set one.", ephemeral=True)
+        return
+    embed = discord.Embed(
+        description=f"🏷️ Your personal prefix is **{prefix}**",
+        color=discord.Color(0x808080)
+    )
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name="checkprefix", description="Check someone else's personal prefix")
+@app_commands.describe(member="The member to check")
+async def checkprefix(interaction: discord.Interaction, member: discord.Member):
+    prefix = get_prefix(member.id)
+    if not prefix:
+        await interaction.response.send_message(f"❌ **{member.display_name}** doesn't have a personal prefix set.", ephemeral=True)
+        return
+    embed = discord.Embed(
+        description=f"🏷️ **{member.display_name}**'s personal prefix is **{prefix}**",
+        color=discord.Color(0x808080)
+    )
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name="removeprefix", description="Remove your personal prefix (Staff can remove anyone's)")
+@app_commands.describe(member="Member to remove prefix from (Staff only, leave empty for yourself)")
+async def removeprefix(interaction: discord.Interaction, member: discord.Member = None):
+    if member and member.id != interaction.user.id:
+        if not has_staff_role(interaction):
+            await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to remove someone else's prefix.", ephemeral=True)
+            return
+    target = member or interaction.user
+    delete_prefix(target.id)
+    if isinstance(target, discord.Member):
+        base_name = target.display_name
+        if " | " in base_name:
+            base_name = base_name.split(" | ", 1)[1]
+        try:
+            await target.edit(nick=base_name if base_name != target.name else None)
+        except discord.Forbidden:
+            pass
+    await interaction.response.send_message(f"✅ Prefix removed for **{target.display_name}**.", ephemeral=True)
 
 # ── TOKEN ECONOMY ─────────────────────────────────────────────────────────────
 

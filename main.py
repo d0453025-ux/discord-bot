@@ -9,6 +9,16 @@ intents = discord.Intents.default()
 bot = discord.Client(intents=intents)
 tree = app_commands.CommandTree(bot)
 
+# ⬇️ EASY TO EDIT - Staff Role Name ⬇️
+# Users must have this role to use giveaway, poll, ban, and kick commands
+STAFF_ROLE_NAME = "Staff"
+# ⬆️ EDIT ABOVE ⬆️
+
+def has_staff_role(interaction: discord.Interaction) -> bool:
+    if isinstance(interaction.user, discord.Member):
+        return any(r.name == STAFF_ROLE_NAME for r in interaction.user.roles)
+    return False
+
 # ⬇️ EASY TO EDIT - Your Prices ⬇️
 
 NORMAL_PRICES = """
@@ -140,7 +150,7 @@ async def on_reaction_add(reaction, user):
         except:
             pass
 
-@tree.command(name="poll", description="Create a poll")
+@tree.command(name="poll", description="Create a poll (Staff only)")
 @app_commands.describe(
     question="What is the poll question?",
     option1="First option",
@@ -149,6 +159,9 @@ async def on_reaction_add(reaction, user):
     option4="Fourth option (optional)"
 )
 async def poll(interaction: discord.Interaction, question: str, option1: str, option2: str, option3: str = None, option4: str = None):
+    if not has_staff_role(interaction):
+        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
+        return
     options = [option1, option2]
     if option3:
         options.append(option3)
@@ -172,13 +185,56 @@ async def poll(interaction: discord.Interaction, question: str, option1: str, op
     for i in range(len(options)):
         await message.add_reaction(emojis[i])
 
-@tree.command(name="giveaway", description="Start a giveaway")
+@tree.command(name="kick", description="Kick a member (Staff only)")
+@app_commands.describe(member="The member to kick", reason="Reason for kick")
+async def kick(interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
+    if not has_staff_role(interaction):
+        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
+        return
+    if not interaction.guild.me.guild_permissions.kick_members:
+        await interaction.response.send_message("❌ I don't have permission to kick members.", ephemeral=True)
+        return
+    try:
+        await member.kick(reason=reason)
+        embed = discord.Embed(
+            title="👢 Member Kicked",
+            description=f"**{member}** has been kicked.\n**Reason:** {reason}",
+            color=discord.Color(0x808080)
+        )
+        await interaction.response.send_message(embed=embed)
+    except discord.Forbidden:
+        await interaction.response.send_message("❌ I can't kick that member. They may have a higher role than me.", ephemeral=True)
+
+@tree.command(name="ban", description="Ban a member (Staff only)")
+@app_commands.describe(member="The member to ban", reason="Reason for ban")
+async def ban(interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
+    if not has_staff_role(interaction):
+        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
+        return
+    if not interaction.guild.me.guild_permissions.ban_members:
+        await interaction.response.send_message("❌ I don't have permission to ban members.", ephemeral=True)
+        return
+    try:
+        await member.ban(reason=reason)
+        embed = discord.Embed(
+            title="🔨 Member Banned",
+            description=f"**{member}** has been banned.\n**Reason:** {reason}",
+            color=discord.Color(0x808080)
+        )
+        await interaction.response.send_message(embed=embed)
+    except discord.Forbidden:
+        await interaction.response.send_message("❌ I can't ban that member. They may have a higher role than me.", ephemeral=True)
+
+@tree.command(name="giveaway", description="Start a giveaway (Staff only)")
 @app_commands.describe(
     prize="What are you giving away?",
     minutes="How long should the giveaway last (in minutes)?",
     winners="How many winners? (default: 1)"
 )
 async def giveaway(interaction: discord.Interaction, prize: str, minutes: int, winners: int = 1):
+    if not has_staff_role(interaction):
+        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
+        return
     end_time = discord.utils.utcnow().timestamp() + (minutes * 60)
 
     embed = discord.Embed(

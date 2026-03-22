@@ -91,7 +91,7 @@ async def on_ready():
 
 @tree.command(name="prices", description="Show the price menu")
 async def prices(interaction: discord.Interaction):
-    embed = discord.Embed(title="📋 PRICE MENU", color=discord.Color(0x000000))
+    embed = discord.Embed(title="📋 PRICE MENU", color=discord.Color(0x808080))
     embed.description = "React to see prices:\n1️⃣ Normal Prices\n2️⃣ Turf Prices\n3️⃣ Game & Links"
     msg = await interaction.response.send_message(embed=embed)
     message = await interaction.original_response()
@@ -101,17 +101,17 @@ async def prices(interaction: discord.Interaction):
 
 @tree.command(name="shop", description="Show the shop with custom weapons and in-game items")
 async def normal_prices(interaction: discord.Interaction):
-    embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color(0x000000))
+    embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color(0x808080))
     await interaction.response.send_message(embed=embed)
 
 @tree.command(name="turf_prices", description="Show turf prices")
 async def turf_prices(interaction: discord.Interaction):
-    embed = discord.Embed(description=TURF_PRICES, color=discord.Color(0x000000))
+    embed = discord.Embed(description=TURF_PRICES, color=discord.Color(0x808080))
     await interaction.response.send_message(embed=embed)
 
 @tree.command(name="game_links", description="Show game and links")
 async def game_links(interaction: discord.Interaction):
-    embed = discord.Embed(description=GAME_AND_LINKS, color=discord.Color(0x000000))
+    embed = discord.Embed(description=GAME_AND_LINKS, color=discord.Color(0x808080))
     await interaction.response.send_message(embed=embed)
 
 @bot.event
@@ -120,19 +120,19 @@ async def on_reaction_add(reaction, user):
         return
 
     if reaction.emoji == "1️⃣":
-        embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color(0x000000))
+        embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color(0x808080))
         try:
             await user.send(embed=embed)
         except:
             pass
     elif reaction.emoji == "2️⃣":
-        embed = discord.Embed(description=TURF_PRICES, color=discord.Color(0x000000))
+        embed = discord.Embed(description=TURF_PRICES, color=discord.Color(0x808080))
         try:
             await user.send(embed=embed)
         except:
             pass
     elif reaction.emoji == "3️⃣":
-        embed = discord.Embed(description=GAME_AND_LINKS, color=discord.Color(0x000000))
+        embed = discord.Embed(description=GAME_AND_LINKS, color=discord.Color(0x808080))
         try:
             await user.send(embed=embed)
         except:

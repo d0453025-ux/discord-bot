@@ -10,12 +10,32 @@ tree = app_commands.CommandTree(bot)
 # ⬇️ EASY TO EDIT - Your Prices ⬇️
 
 NORMAL_PRICES = """
-**🎮 NORMAL PRICES**
-💰 100 Robux = $1.00
-💰 500 Robux = $4.99
-💰 1,000 Robux = $9.99
-💰 2,500 Robux = $24.99
-💰 10,000 Robux = $99.99
+**🛒 SHOP — CUSTOM WEAPONS**
+🔫 **Custom Draco** — 250 Robux
+┣ 20 Base Spawns
+┗ Name, Level, Laser/Glow Effects, Trails
+
+🔫 **Custom SG** — 300 Robux
+┣ 25 Base Spawns
+┗ Name, Level, Laser/Glow Effects
+
+🔫 **Custom Golden Gun** — 350 Robux
+┣ 25 Base Spawns
+┗ Name, Level, Laser/Glow Effects, Golden Finish
+
+─────────────────────────
+**🔧 BUNDLES & ADD-ONS**
+📦 Custom Name + Level Bundle — 150 Robux
+✨ Laser / Glow / Trail Effects — 100–150 Robux each
+➕ Extra Spawns (+5) — 75 Robux (stackable up to 5x)
+
+─────────────────────────
+**💵 IN-GAME ITEMS**
+💰 Small Cash (10k) — 50 Robux
+💰 Medium Cash (25k) — 120 Robux 🔥 HOT DEAL
+💰 Large Cash (50k) — 200 Robux ⭐ BEST VALUE
+⚡ XP Boost (2x 1h) — 100 Robux (stackable up to 6h)
+⚡ Weapon XP Boost (+50% 1h) — 120 Robux (stackable per weapon)
 """
 
 TURF_PRICES = """
@@ -50,7 +70,7 @@ async def prices(interaction: discord.Interaction):
     await message.add_reaction("2️⃣")
     await message.add_reaction("3️⃣")
 
-@tree.command(name="normal_prices", description="Show normal Robux prices")
+@tree.command(name="shop", description="Show the shop with custom weapons and in-game items")
 async def normal_prices(interaction: discord.Interaction):
     embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color.green())
     await interaction.response.send_message(embed=embed)

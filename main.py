@@ -49,9 +49,6 @@ TURF_PRICES = """
 🏢 **Big Turf** — 1,000 Robux | 📦 12 Crates | 📊 10 Available
 ┗ 2 Levels: 🚪 Entry, 📦 Crates, 🎨 Custom Room, 😌 Chill Room, 🏋️ Training, 🥊 Boxing Arena
 
-🆓 **Free Turf** — 0 Robux | 📦 7 Crates | ❌ 0 Available (4 taken)
-┗ 4 Rooms: 🏋️ Training Area, 🛋️ Main Area, 🎨 Custom Room, 📦 Crate Room
-
 ─────────────────────────
 🥊 **ARENA ROOM (Boxing / PvP)**
 Supports 1v1, 2v2, etc.

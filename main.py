@@ -11,7 +11,7 @@ tree = app_commands.CommandTree(bot)
 
 # ⬇️ EASY TO EDIT - Staff Role Name ⬇️
 # Users must have this role to use giveaway, poll, ban, and kick commands
-STAFF_ROLE_NAME = "Staff"
+STAFF_ROLE_NAME = "Hc/botacces"
 # ⬆️ EDIT ABOVE ⬆️
 
 def has_staff_role(interaction: discord.Interaction) -> bool:

@@ -140,6 +140,38 @@ async def on_reaction_add(reaction, user):
         except:
             pass
 
+@tree.command(name="poll", description="Create a poll")
+@app_commands.describe(
+    question="What is the poll question?",
+    option1="First option",
+    option2="Second option",
+    option3="Third option (optional)",
+    option4="Fourth option (optional)"
+)
+async def poll(interaction: discord.Interaction, question: str, option1: str, option2: str, option3: str = None, option4: str = None):
+    options = [option1, option2]
+    if option3:
+        options.append(option3)
+    if option4:
+        options.append(option4)
+
+    emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"]
+    description = f"**{question}**\n\n"
+    for i, option in enumerate(options):
+        description += f"{emojis[i]} {option}\n"
+
+    embed = discord.Embed(
+        title="📊 POLL",
+        description=description,
+        color=discord.Color(0x808080)
+    )
+    embed.set_footer(text=f"Poll by {interaction.user.display_name}")
+
+    await interaction.response.send_message(embed=embed)
+    message = await interaction.original_response()
+    for i in range(len(options)):
+        await message.add_reaction(emojis[i])
+
 @tree.command(name="giveaway", description="Start a giveaway")
 @app_commands.describe(
     prize="What are you giving away?",

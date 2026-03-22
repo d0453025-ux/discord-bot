@@ -1,11 +1,11 @@
 import discord
 import os
-from discord.ext import commands
+from discord import app_commands
 
 # Bot setup
 intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = discord.Client(intents=intents)
+tree = app_commands.CommandTree(bot)
 
 # ⬇️ EASY TO EDIT - Your Prices ⬇️
 
@@ -37,38 +37,39 @@ GAME_AND_LINKS = """
 
 @bot.event
 async def on_ready():
+    await tree.sync()
     print(f"✅ Bot is ONLINE as {bot.user}")
 
-@bot.command(name="prices")
-async def prices(ctx):
-    """Show price menu"""
+@tree.command(name="prices", description="Show the price menu")
+async def prices(interaction: discord.Interaction):
     embed = discord.Embed(title="📋 PRICE MENU", color=discord.Color.blue())
     embed.description = "React to see prices:\n1️⃣ Normal Prices\n2️⃣ Turf Prices\n3️⃣ Game & Links"
-    msg = await ctx.send(embed=embed)
-    await msg.add_reaction("1️⃣")
-    await msg.add_reaction("2️⃣")
-    await msg.add_reaction("3️⃣")
+    msg = await interaction.response.send_message(embed=embed)
+    message = await interaction.original_response()
+    await message.add_reaction("1️⃣")
+    await message.add_reaction("2️⃣")
+    await message.add_reaction("3️⃣")
 
-@bot.command(name="1")
-async def normal_prices(ctx):
+@tree.command(name="normal_prices", description="Show normal Robux prices")
+async def normal_prices(interaction: discord.Interaction):
     embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color.green())
-    await ctx.send(embed=embed)
+    await interaction.response.send_message(embed=embed)
 
-@bot.command(name="2")
-async def turf_prices(ctx):
+@tree.command(name="turf_prices", description="Show turf prices")
+async def turf_prices(interaction: discord.Interaction):
     embed = discord.Embed(description=TURF_PRICES, color=discord.Color.orange())
-    await ctx.send(embed=embed)
+    await interaction.response.send_message(embed=embed)
 
-@bot.command(name="3")
-async def game_links(ctx):
+@tree.command(name="game_links", description="Show game and links")
+async def game_links(interaction: discord.Interaction):
     embed = discord.Embed(description=GAME_AND_LINKS, color=discord.Color.purple())
-    await ctx.send(embed=embed)
+    await interaction.response.send_message(embed=embed)
 
 @bot.event
 async def on_reaction_add(reaction, user):
     if user == bot.user:
         return
-    
+
     if reaction.emoji == "1️⃣":
         embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color.green())
         try:

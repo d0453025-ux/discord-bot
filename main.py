@@ -74,8 +74,8 @@ Add-ons: neon underglow, custom rims, horn sounds
 
 GAME_AND_LINKS = """
 **🎯 GAME & LINKS**
-🎮 Game Link: https://www.roblox.com/games/YOURGAMEID
-👥 Roblox Group: https://www.roblox.com/groups/YOURGROUPID
+🎮 Game Link: https://www.roblox.com/share?code=2ee1ff592f4e4843b7c6390da0f61844&type=ExperienceDetails&stamp=1771789166361
+👥 Roblox Group: https://www.roblox.com/share/g/628331601
 🪙 Discord Server: https://discord.gg/YOURINVITECODE
 """
 

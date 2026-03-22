@@ -10,6 +10,7 @@ from discord import app_commands
 # Bot setup
 intents = discord.Intents.default()
 intents.members = True
+intents.message_content = True
 bot = discord.Client(intents=intents)
 tree = app_commands.CommandTree(bot)
 
@@ -841,6 +842,138 @@ async def on_member_join(member):
                     except:
                         pass
                 break
+
+# ── PERSONAL PREFIX COMMAND HANDLER ───────────────────────────────────────────
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    user_prefix = get_prefix(message.author.id)
+    if not user_prefix:
+        return
+
+    content = message.content.strip()
+    prefix_lower = user_prefix.lower()
+    content_lower = content.lower()
+
+    # Must start with their prefix followed by a space
+    if not content_lower.startswith(prefix_lower + " "):
+        return
+
+    args = content[len(user_prefix):].strip().split()
+    if not args:
+        return
+
+    cmd = args[0].lower()
+    member = message.author
+
+    # beg
+    if cmd == "beg":
+        amount = random.randint(50, 500)
+        add_tokens(member.id, amount)
+        if isinstance(member, discord.Member):
+            await check_token_roles(member)
+        embed = discord.Embed(
+            description=f"🎁 {member.mention} begged and got **{amount}** tokens!",
+            color=discord.Color(0x808080)
+        )
+        embed.set_footer(text=f"Total: {get_tokens(member.id)} tokens")
+        await message.channel.send(embed=embed)
+
+    # daily
+    elif cmd == "daily":
+        streak = get_daily_streak(member.id)
+        if streak > 0:
+            await message.channel.send(f"❌ {member.mention} You already claimed your daily! Come back tomorrow.")
+            return
+        new_streak = streak + 1
+        amount = 100 + (new_streak - 1)
+        add_tokens(member.id, amount)
+        set_daily(member.id, new_streak)
+        if isinstance(member, discord.Member):
+            await check_token_roles(member)
+        embed = discord.Embed(
+            description=f"📅 {member.mention} claimed daily reward! **{amount}** tokens",
+            color=discord.Color(0x808080)
+        )
+        embed.add_field(name="Streak", value=f"🔥 {new_streak} day(s)", inline=False)
+        embed.set_footer(text=f"Total: {get_tokens(member.id)} tokens")
+        await message.channel.send(embed=embed)
+
+    # roll
+    elif cmd == "roll":
+        if len(args) < 2 or not args[1].isdigit():
+            await message.channel.send(f"❌ Usage: `{user_prefix} roll <amount>`")
+            return
+        bet = int(args[1])
+        tokens = get_tokens(member.id)
+        if bet <= 0:
+            await message.channel.send("❌ Bet must be more than 0!")
+            return
+        if tokens < bet:
+            await message.channel.send(f"❌ You only have **{tokens}** tokens!")
+            return
+        if random.choice([True, False]):
+            add_tokens(member.id, bet)
+            embed = discord.Embed(description=f"🎲 {member.mention} **WON!** +**{bet}** tokens!", color=discord.Color(0x808080))
+        else:
+            remove_tokens(member.id, bet)
+            embed = discord.Embed(description=f"🎲 {member.mention} **LOST!** -{bet} tokens!", color=discord.Color(0x808080))
+        embed.set_footer(text=f"Total: {get_tokens(member.id)} tokens")
+        await message.channel.send(embed=embed)
+        if isinstance(member, discord.Member):
+            await check_token_roles(member)
+
+    # balance
+    elif cmd in ("balance", "bal"):
+        target = message.mentions[0] if message.mentions else member
+        tokens = get_tokens(target.id)
+        embed = discord.Embed(
+            description=f"💰 {target.mention} has **{tokens}** tokens",
+            color=discord.Color(0x808080)
+        )
+        await message.channel.send(embed=embed)
+
+    # steal
+    elif cmd == "steal":
+        if not message.mentions:
+            await message.channel.send(f"❌ Usage: `{user_prefix} steal @user`")
+            return
+        target = message.mentions[0]
+        if target.id == member.id:
+            await message.channel.send("❌ You can't steal from yourself!")
+            return
+        tokens = get_tokens(member.id)
+        if tokens < 5000:
+            await message.channel.send(f"❌ You need at least **5,000** tokens to steal! You have {tokens}.")
+            return
+        if random.randint(1, 100) <= 40:
+            amount = random.randint(10, 200)
+            remove_tokens(target.id, amount)
+            add_tokens(member.id, amount)
+            embed = discord.Embed(
+                description=f"🔓 {member.mention} stole **{amount}** tokens from {target.mention}!",
+                color=discord.Color(0x808080)
+            )
+        else:
+            embed = discord.Embed(
+                description=f"🔒 {member.mention} tried to steal but **FAILED!** {target.mention} caught them!",
+                color=discord.Color(0x808080)
+            )
+        await message.channel.send(embed=embed)
+
+    # prefix (show your own)
+    elif cmd == "prefix":
+        await message.channel.send(f"🏷️ {member.mention} Your personal prefix is **{user_prefix}**")
+
+    # help
+    elif cmd == "help":
+        embed = discord.Embed(title=f"📖 {user_prefix} COMMANDS", color=discord.Color(0x808080))
+        embed.add_field(name="Token Commands", value=f"`{user_prefix} beg`\n`{user_prefix} daily`\n`{user_prefix} roll <amount>`\n`{user_prefix} steal @user`\n`{user_prefix} balance`", inline=False)
+        embed.add_field(name="Other", value=f"`{user_prefix} prefix` — show your prefix\n`{user_prefix} help` — show this menu", inline=False)
+        await message.channel.send(embed=embed)
 
 token = os.environ.get("DISCORD_TOKEN")
 if not token:

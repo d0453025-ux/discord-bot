@@ -9,7 +9,7 @@ from discord import app_commands
 
 # Bot setup
 intents = discord.Intents.default()
-# intents.members = True  # Uncomment after enabling Server Members Intent in Discord Developer Portal
+intents.members = True
 bot = discord.Client(intents=intents)
 tree = app_commands.CommandTree(bot)
 

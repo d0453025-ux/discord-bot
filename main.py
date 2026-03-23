@@ -678,8 +678,8 @@ def delete_prefix(user_id):
         del data[uid]["prefix"]
         save_data(data)
 
-@tree.command(name="setprefix", description="Set your personal prefix (e.g. Hc, Ez)")
-@app_commands.describe(prefix="Your personal prefix tag")
+@tree.command(name="setprefix", description="Set your personal prefix (e.g. , or ! or Hc) — then use it instead of /")
+@app_commands.describe(prefix="Your prefix — e.g. ',' means you type ',beg' instead of '/beg'")
 async def setprefix(interaction: discord.Interaction, prefix: str):
     if len(prefix) > 10:
         await interaction.response.send_message("❌ Prefix must be 10 characters or less.", ephemeral=True)
@@ -1003,10 +1003,19 @@ async def on_message(message):
         return
 
     content = message.content.strip()
-    if not content.lower().startswith(user_prefix.lower() + " "):
+    prefix_lower = user_prefix.lower()
+    content_lower = content.lower()
+
+    # Support both "prefix command" (with space) and "prefixcommand" (no space)
+    if not content_lower.startswith(prefix_lower):
         return
 
-    args = content[len(user_prefix):].strip().split()
+    # Make sure something follows the prefix
+    after_prefix = content[len(user_prefix):]
+    if not after_prefix.strip():
+        return
+
+    args = after_prefix.strip().split()
     if not args:
         return
 
@@ -1220,11 +1229,12 @@ async def on_message(message):
     # ── HELP ──
     elif cmd == "help":
         p = user_prefix
-        embed = discord.Embed(title=f"📖 {p} COMMANDS", color=discord.Color(0x808080))
-        embed.add_field(name="🪙 Tokens", value=f"`{p} beg` `{p} daily` `{p} roll <amount>` `{p} steal @user` `{p} balance` `{p} lb`", inline=False)
-        embed.add_field(name="🎮 Fun", value=f"`{p} dice` `{p} coinflip` `{p} rps rock/paper/scissors` `{p} 8ball <question>` `{p} ping`", inline=False)
-        embed.add_field(name="🛒 Shop", value=f"`{p} shop` `{p} turf` `{p} links`", inline=False)
-        embed.add_field(name="👤 Info", value=f"`{p} userinfo` `{p} serverinfo` `{p} prefix`", inline=False)
+        embed = discord.Embed(title=f"📖 Commands — prefix: `{p}`", color=discord.Color(0x808080))
+        embed.set_footer(text=f"Use {p}command — e.g. {p}beg or {p}daily")
+        embed.add_field(name="🪙 Tokens", value=f"`{p}beg` `{p}daily` `{p}roll <amount>` `{p}steal @user` `{p}balance` `{p}cash` `{p}lb`", inline=False)
+        embed.add_field(name="🎮 Fun", value=f"`{p}dice` `{p}coinflip` `{p}rps rock/paper/scissors` `{p}8ball <question>` `{p}ping`", inline=False)
+        embed.add_field(name="🛒 Shop", value=f"`{p}shop` `{p}turf` `{p}links`", inline=False)
+        embed.add_field(name="👤 Info", value=f"`{p}userinfo` `{p}serverinfo` `{p}prefix`", inline=False)
         await ch.send(embed=embed)
 
 token = os.environ.get("DISCORD_TOKEN")

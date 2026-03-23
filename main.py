@@ -848,6 +848,28 @@ async def balance(interaction: discord.Interaction, member: discord.Member = Non
     )
     await interaction.response.send_message(embed=embed)
 
+@tree.command(name="cash", description="Check your Hood Conflict in-game money")
+@app_commands.describe(member="Member to check (leave empty for yourself)")
+async def cash(interaction: discord.Interaction, member: discord.Member = None):
+    member = member or interaction.user
+    tokens = get_tokens(member.id)
+    if tokens >= 1000000:
+        status = "Rich MF 💎"
+    elif tokens >= 25000:
+        status = "Daily Active 🔥"
+    elif tokens >= 10000:
+        status = "Rising ⭐"
+    elif tokens >= 5000:
+        status = "Just Starting 🌱"
+    else:
+        status = "Broke 😔"
+    embed = discord.Embed(title="💵 Hood Conflict Cash", color=discord.Color(0x808080))
+    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.add_field(name="👤 Player", value=member.mention, inline=True)
+    embed.add_field(name="💰 Balance", value=f"**${tokens:,}**", inline=True)
+    embed.add_field(name="📊 Status", value=status, inline=True)
+    await interaction.response.send_message(embed=embed)
+
 # ── LEADERBOARDS ──────────────────────────────────────────────────────────────
 
 @tree.command(name="tokens_leaderboard", description="Show the top token earners")
@@ -1053,6 +1075,27 @@ async def on_message(message):
         target = message.mentions[0] if message.mentions else member
         tokens = get_tokens(target.id)
         embed = discord.Embed(description=f"💰 {target.mention} has **{tokens}** tokens", color=discord.Color(0x808080))
+        await ch.send(embed=embed)
+
+    elif cmd == "cash":
+        target = message.mentions[0] if message.mentions else member
+        tokens = get_tokens(target.id)
+        if tokens >= 1000000:
+            status = "Rich MF 💎"
+        elif tokens >= 25000:
+            status = "Daily Active 🔥"
+        elif tokens >= 10000:
+            status = "Rising ⭐"
+        elif tokens >= 5000:
+            status = "Just Starting 🌱"
+        else:
+            status = "Broke 😔"
+        embed = discord.Embed(title="💵 Hood Conflict Cash", color=discord.Color(0x808080))
+        if isinstance(target, discord.Member):
+            embed.set_thumbnail(url=target.display_avatar.url)
+        embed.add_field(name="👤 Player", value=target.mention, inline=True)
+        embed.add_field(name="💰 Balance", value=f"**${tokens:,}**", inline=True)
+        embed.add_field(name="📊 Status", value=status, inline=True)
         await ch.send(embed=embed)
 
     elif cmd == "steal":

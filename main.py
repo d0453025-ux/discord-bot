@@ -409,13 +409,30 @@ async def giveaway(interaction: discord.Interaction, prize: str, minutes: int, w
 @tree.command(name="serverinfo", description="Show server information")
 async def serverinfo(interaction: discord.Interaction):
     guild = interaction.guild
+    total = guild.member_count
+    bots = sum(1 for m in guild.members if m.bot)
+    humans = total - bots
+    text_channels = len(guild.text_channels)
+    voice_channels = len(guild.voice_channels)
+    categories = len(guild.categories)
+    roles = [r.mention for r in reversed(guild.roles) if r.name != "@everyone"]
+    role_display = ", ".join(roles[:20]) + (f" (+{len(roles)-20} more)" if len(roles) > 20 else "") if roles else "None"
     embed = discord.Embed(title=f"📊 {guild.name}", color=discord.Color(0x808080))
-    embed.add_field(name="👥 Members", value=guild.member_count)
-    embed.add_field(name="📅 Created", value=f"<t:{int(guild.created_at.timestamp())}:D>")
-    embed.add_field(name="👑 Owner", value=f"<@{guild.owner_id}>")
-    embed.add_field(name="🎭 Roles", value=len(guild.roles))
-    embed.add_field(name="💬 Channels", value=len(guild.channels))
-    embed.add_field(name="🌍 Region", value="Automatic")
+    if guild.icon:
+        embed.set_thumbnail(url=guild.icon.url)
+    embed.add_field(name="🆔 Server ID", value=guild.id, inline=True)
+    embed.add_field(name="👑 Owner", value=f"<@{guild.owner_id}>", inline=True)
+    embed.add_field(name="📅 Created", value=f"<t:{int(guild.created_at.timestamp())}:D>", inline=True)
+    embed.add_field(name="👥 Total Members", value=total, inline=True)
+    embed.add_field(name="🧑 Humans", value=humans, inline=True)
+    embed.add_field(name="🤖 Bots", value=bots, inline=True)
+    embed.add_field(name="💬 Text Channels", value=text_channels, inline=True)
+    embed.add_field(name="🔊 Voice Channels", value=voice_channels, inline=True)
+    embed.add_field(name="📁 Categories", value=categories, inline=True)
+    embed.add_field(name="🎭 Role Count", value=len(roles), inline=True)
+    embed.add_field(name="⚡ Boost Level", value=f"Level {guild.premium_tier} ({guild.premium_subscription_count} boosts)", inline=True)
+    embed.add_field(name="🔒 Verification", value=str(guild.verification_level).title(), inline=True)
+    embed.add_field(name="🎭 Roles", value=role_display, inline=False)
     await interaction.response.send_message(embed=embed)
 
 @tree.command(name="roleinfo", description="Show info about a role")
@@ -606,11 +623,20 @@ async def botinfo(interaction: discord.Interaction):
     hours, remainder = divmod(uptime_seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     uptime_str = f"{hours}h {minutes}m {seconds}s"
-    embed = discord.Embed(title="🤖 Bot Info", color=discord.Color(0x808080))
-    embed.add_field(name="🤖 Name", value=str(bot.user))
-    embed.add_field(name="⏱️ Uptime", value=uptime_str)
-    embed.add_field(name="🌍 Servers", value=len(bot.guilds))
-    embed.add_field(name="📡 Latency", value=f"{round(bot.latency * 1000)}ms")
+    total_members = sum(g.member_count for g in bot.guilds)
+    total_commands = len(tree.get_commands())
+    embed = discord.Embed(title="🤖 Bot Info — Hood Conflict", color=discord.Color(0x808080))
+    if bot.user.display_avatar:
+        embed.set_thumbnail(url=bot.user.display_avatar.url)
+    embed.add_field(name="🤖 Name", value=str(bot.user), inline=True)
+    embed.add_field(name="🆔 Bot ID", value=bot.user.id, inline=True)
+    embed.add_field(name="📡 Latency", value=f"{round(bot.latency * 1000)}ms", inline=True)
+    embed.add_field(name="⏱️ Uptime", value=uptime_str, inline=True)
+    embed.add_field(name="🌍 Servers", value=len(bot.guilds), inline=True)
+    embed.add_field(name="👥 Total Members", value=total_members, inline=True)
+    embed.add_field(name="⚙️ Slash Commands", value=total_commands, inline=True)
+    embed.add_field(name="🐍 Library", value="discord.py", inline=True)
+    embed.add_field(name="🎮 Game", value="[Hood Conflict](https://www.roblox.com/games/16627395079)", inline=True)
     await interaction.response.send_message(embed=embed)
 
 # ── PERSONAL PREFIX ───────────────────────────────────────────────────────────
@@ -1107,10 +1133,27 @@ async def on_message(message):
     elif cmd == "serverinfo":
         guild = message.guild
         if guild:
+            total = guild.member_count
+            bots = sum(1 for m in guild.members if m.bot)
+            humans = total - bots
+            roles = [r.mention for r in reversed(guild.roles) if r.name != "@everyone"]
+            role_display = ", ".join(roles[:20]) + (f" (+{len(roles)-20} more)" if len(roles) > 20 else "") if roles else "None"
             embed = discord.Embed(title=f"📊 {guild.name}", color=discord.Color(0x808080))
-            embed.add_field(name="👥 Members", value=guild.member_count)
-            embed.add_field(name="📅 Created", value=f"<t:{int(guild.created_at.timestamp())}:D>")
-            embed.add_field(name="👑 Owner", value=f"<@{guild.owner_id}>")
+            if guild.icon:
+                embed.set_thumbnail(url=guild.icon.url)
+            embed.add_field(name="🆔 Server ID", value=guild.id, inline=True)
+            embed.add_field(name="👑 Owner", value=f"<@{guild.owner_id}>", inline=True)
+            embed.add_field(name="📅 Created", value=f"<t:{int(guild.created_at.timestamp())}:D>", inline=True)
+            embed.add_field(name="👥 Total Members", value=total, inline=True)
+            embed.add_field(name="🧑 Humans", value=humans, inline=True)
+            embed.add_field(name="🤖 Bots", value=bots, inline=True)
+            embed.add_field(name="💬 Text Channels", value=len(guild.text_channels), inline=True)
+            embed.add_field(name="🔊 Voice Channels", value=len(guild.voice_channels), inline=True)
+            embed.add_field(name="📁 Categories", value=len(guild.categories), inline=True)
+            embed.add_field(name="🎭 Role Count", value=len(roles), inline=True)
+            embed.add_field(name="⚡ Boost Level", value=f"Level {guild.premium_tier} ({guild.premium_subscription_count} boosts)", inline=True)
+            embed.add_field(name="🔒 Verification", value=str(guild.verification_level).title(), inline=True)
+            embed.add_field(name="🎭 Roles", value=role_display, inline=False)
             await ch.send(embed=embed)
 
     # ── HELP ──

@@ -4,8 +4,26 @@ import asyncio
 import random
 import time
 import json
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime, timedelta
 from discord import app_commands
+
+# ── KEEP-ALIVE SERVER (satisfies Replit deployment health check) ───────────────
+class _HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Hood Conflict Bot is running!")
+    def log_message(self, *args):
+        pass  # silence request logs
+
+def _run_health_server():
+    server = HTTPServer(("0.0.0.0", 8080), _HealthHandler)
+    server.serve_forever()
+
+threading.Thread(target=_run_health_server, daemon=True).start()
+# ──────────────────────────────────────────────────────────────────────────────
 
 # Bot setup
 intents = discord.Intents.default()

@@ -843,6 +843,58 @@ async def on_member_join(member):
                         pass
                 break
 
+# ── NICKNAME COMMANDS ─────────────────────────────────────────────────────────
+
+@tree.command(name="nick", description="Change your own nickname")
+@app_commands.describe(nickname="Your new nickname (leave empty to reset)")
+async def nick(interaction: discord.Interaction, nickname: str = None):
+    member = interaction.user
+    if not isinstance(member, discord.Member):
+        await interaction.response.send_message("❌ This command can only be used in a server.", ephemeral=True)
+        return
+    try:
+        if nickname:
+            # Keep personal prefix if they have one
+            prefix = get_prefix(member.id)
+            if prefix:
+                base = nickname
+                if " | " in nickname:
+                    base = nickname.split(" | ", 1)[1]
+                new_nick = f"{prefix} | {base}"
+            else:
+                new_nick = nickname
+            await member.edit(nick=new_nick)
+            await interaction.response.send_message(f"✅ Your nickname has been changed to **{new_nick}**.", ephemeral=True)
+        else:
+            await member.edit(nick=None)
+            await interaction.response.send_message("✅ Your nickname has been reset.", ephemeral=True)
+    except discord.Forbidden:
+        await interaction.response.send_message("❌ I don't have permission to change your nickname.", ephemeral=True)
+
+@tree.command(name="setnick", description="Change a member's nickname (Staff only)")
+@app_commands.describe(member="The member to rename", nickname="Their new nickname (leave empty to reset)")
+async def setnick(interaction: discord.Interaction, member: discord.Member, nickname: str = None):
+    if not has_staff_role(interaction):
+        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
+        return
+    try:
+        if nickname:
+            prefix = get_prefix(member.id)
+            if prefix:
+                base = nickname
+                if " | " in nickname:
+                    base = nickname.split(" | ", 1)[1]
+                new_nick = f"{prefix} | {base}"
+            else:
+                new_nick = nickname
+            await member.edit(nick=new_nick)
+            await interaction.response.send_message(f"✅ **{member.name}**'s nickname has been changed to **{new_nick}**.")
+        else:
+            await member.edit(nick=None)
+            await interaction.response.send_message(f"✅ **{member.name}**'s nickname has been reset.")
+    except discord.Forbidden:
+        await interaction.response.send_message("❌ I can't change that member's nickname. They may have a higher role than me.", ephemeral=True)
+
 # ── PERSONAL PREFIX COMMAND HANDLER ───────────────────────────────────────────
 
 @bot.event

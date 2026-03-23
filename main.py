@@ -1186,8 +1186,20 @@ async def on_message(message):
         await ch.send(embed=embed)
 
     # ── PROFILE / INFO ──
-    elif cmd == "prefix":
+    elif cmd in ("prefix", "myprefix"):
         await ch.send(f"🏷️ {member.mention} Your personal prefix is **{user_prefix}**")
+
+    elif cmd == "checkprefix":
+        target = message.mentions[0] if message.mentions else None
+        if not target:
+            await ch.send(f"❌ Usage: `{user_prefix}checkprefix @user`")
+            return
+        p = get_prefix(target.id)
+        await ch.send(f"🏷️ {target.mention}'s prefix is **{p}**" if p else f"❌ {target.mention} has no prefix set.")
+
+    elif cmd == "removeprefix":
+        delete_prefix(member.id)
+        await ch.send(f"✅ {member.mention} Your prefix has been removed.")
 
     elif cmd == "userinfo":
         target = message.mentions[0] if message.mentions else member
@@ -1195,8 +1207,9 @@ async def on_message(message):
             roles = [r.mention for r in target.roles if r.name != "@everyone"]
             embed = discord.Embed(title=f"👤 {target}", color=discord.Color(0x808080))
             embed.set_thumbnail(url=target.display_avatar.url)
-            embed.add_field(name="📅 Joined", value=f"<t:{int(target.joined_at.timestamp())}:D>")
-            embed.add_field(name="🎂 Created", value=f"<t:{int(target.created_at.timestamp())}:D>")
+            embed.add_field(name="🆔 ID", value=target.id, inline=True)
+            embed.add_field(name="📅 Joined", value=f"<t:{int(target.joined_at.timestamp())}:D>", inline=True)
+            embed.add_field(name="🎂 Created", value=f"<t:{int(target.created_at.timestamp())}:D>", inline=True)
             embed.add_field(name="🎭 Roles", value=", ".join(roles) if roles else "None", inline=False)
             await ch.send(embed=embed)
 
@@ -1226,15 +1239,227 @@ async def on_message(message):
             embed.add_field(name="🎭 Roles", value=role_display, inline=False)
             await ch.send(embed=embed)
 
+    elif cmd == "botinfo":
+        uptime_seconds = int(time.time() - START_TIME) if START_TIME else 0
+        h, rem = divmod(uptime_seconds, 3600)
+        m2, s2 = divmod(rem, 60)
+        total_members = sum(g.member_count for g in bot.guilds)
+        embed = discord.Embed(title="🤖 Bot Info — Hood Conflict", color=discord.Color(0x808080))
+        if bot.user.display_avatar:
+            embed.set_thumbnail(url=bot.user.display_avatar.url)
+        embed.add_field(name="🤖 Name", value=str(bot.user), inline=True)
+        embed.add_field(name="🆔 Bot ID", value=bot.user.id, inline=True)
+        embed.add_field(name="📡 Latency", value=f"{round(bot.latency * 1000)}ms", inline=True)
+        embed.add_field(name="⏱️ Uptime", value=f"{h}h {m2}m {s2}s", inline=True)
+        embed.add_field(name="🌍 Servers", value=len(bot.guilds), inline=True)
+        embed.add_field(name="👥 Total Members", value=total_members, inline=True)
+        await ch.send(embed=embed)
+
+    elif cmd == "roles":
+        guild = message.guild
+        if guild:
+            role_list = [r.mention for r in reversed(guild.roles) if r.name != "@everyone"]
+            embed = discord.Embed(title=f"🎭 Roles in {guild.name}", description=", ".join(role_list) if role_list else "No roles", color=discord.Color(0x808080))
+            await ch.send(embed=embed)
+
+    elif cmd == "roleinfo":
+        if not message.role_mentions:
+            await ch.send(f"❌ Usage: `{user_prefix}roleinfo @role`")
+            return
+        role = message.role_mentions[0]
+        embed = discord.Embed(title=f"🎭 {role.name}", color=role.color)
+        embed.add_field(name="🆔 ID", value=role.id, inline=True)
+        embed.add_field(name="👥 Members", value=len(role.members), inline=True)
+        embed.add_field(name="🎨 Color", value=str(role.color), inline=True)
+        embed.add_field(name="📌 Mentionable", value="Yes" if role.mentionable else "No", inline=True)
+        embed.add_field(name="🔼 Hoisted", value="Yes" if role.hoist else "No", inline=True)
+        embed.add_field(name="📅 Created", value=f"<t:{int(role.created_at.timestamp())}:D>", inline=True)
+        await ch.send(embed=embed)
+
+    elif cmd == "invites":
+        try:
+            server_invites = await message.guild.invites()
+            if not server_invites:
+                await ch.send("No active invites found.")
+                return
+            lines = [f"🔗 `{inv.code}` — by {inv.inviter.mention if inv.inviter else 'Unknown'} — **{inv.uses}** uses" for inv in server_invites]
+            embed = discord.Embed(title="📨 Server Invites", description="\n".join(lines), color=discord.Color(0x808080))
+            await ch.send(embed=embed)
+        except discord.Forbidden:
+            await ch.send("❌ I need **Manage Guild** permission to view invites.")
+
+    elif cmd in ("invites_leaderboard", "ilb"):
+        data = get_data()
+        sorted_users = sorted(data.items(), key=lambda x: x[1].get("invites", 0), reverse=True)[:10]
+        lines = [f"{i+1}. <@{uid}> — **{ud.get('invites', 0)}** invites" for i, (uid, ud) in enumerate(sorted_users) if ud.get("invites", 0) > 0]
+        embed = discord.Embed(title="📨 INVITE LEADERBOARD", description="\n".join(lines) if lines else "No invite data yet.", color=discord.Color(0x808080))
+        await ch.send(embed=embed)
+
+    elif cmd == "nick":
+        if not isinstance(member, discord.Member):
+            return
+        new_nick = rest if rest else None
+        try:
+            if new_nick:
+                prefix_tag = get_prefix(member.id)
+                if prefix_tag:
+                    base = new_nick.split(" | ", 1)[1] if " | " in new_nick else new_nick
+                    new_nick = f"{prefix_tag} | {base}"
+                await member.edit(nick=new_nick)
+                await ch.send(f"✅ {member.mention} Nickname changed to **{new_nick}**.")
+            else:
+                await member.edit(nick=None)
+                await ch.send(f"✅ {member.mention} Nickname reset.")
+        except discord.Forbidden:
+            await ch.send("❌ I don't have permission to change your nickname.")
+
+    elif cmd == "prices":
+        embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color(0x808080))
+        await ch.send(embed=embed)
+
+    # ── STAFF COMMANDS ──
+    elif cmd == "kick":
+        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
+            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
+            return
+        if not message.mentions:
+            await ch.send(f"❌ Usage: `{user_prefix}kick @user <reason>`")
+            return
+        target = message.mentions[0]
+        reason = " ".join(args[2:]) if len(args) > 2 else "No reason provided"
+        try:
+            await target.kick(reason=reason)
+            await ch.send(f"✅ **{target}** has been kicked. Reason: {reason}")
+        except discord.Forbidden:
+            await ch.send("❌ I don't have permission to kick that member.")
+
+    elif cmd == "ban":
+        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
+            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
+            return
+        if not message.mentions:
+            await ch.send(f"❌ Usage: `{user_prefix}ban @user <reason>`")
+            return
+        target = message.mentions[0]
+        reason = " ".join(args[2:]) if len(args) > 2 else "No reason provided"
+        try:
+            await target.ban(reason=reason)
+            await ch.send(f"✅ **{target}** has been banned. Reason: {reason}")
+        except discord.Forbidden:
+            await ch.send("❌ I don't have permission to ban that member.")
+
+    elif cmd == "mute":
+        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
+            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
+            return
+        if not message.mentions:
+            await ch.send(f"❌ Usage: `{user_prefix}mute @user <minutes>`")
+            return
+        target = message.mentions[0]
+        minutes = int(args[2]) if len(args) > 2 and args[2].isdigit() else 10
+        try:
+            await target.timeout(timedelta(minutes=minutes))
+            await ch.send(f"✅ **{target}** muted for **{minutes}** minutes.")
+        except discord.Forbidden:
+            await ch.send("❌ I don't have permission to mute that member.")
+
+    elif cmd == "unmute":
+        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
+            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
+            return
+        if not message.mentions:
+            await ch.send(f"❌ Usage: `{user_prefix}unmute @user`")
+            return
+        target = message.mentions[0]
+        try:
+            await target.timeout(None)
+            await ch.send(f"✅ **{target}** has been unmuted.")
+        except discord.Forbidden:
+            await ch.send("❌ I don't have permission to unmute that member.")
+
+    elif cmd == "warn":
+        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
+            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
+            return
+        if not message.mentions:
+            await ch.send(f"❌ Usage: `{user_prefix}warn @user <reason>`")
+            return
+        target = message.mentions[0]
+        reason = " ".join(args[2:]) if len(args) > 2 else "No reason provided"
+        data = get_data()
+        uid = str(target.id)
+        if uid not in data:
+            data[uid] = {"tokens": 0, "last_daily": None, "daily_streak": 0}
+        if "warnings" not in data[uid]:
+            data[uid]["warnings"] = []
+        data[uid]["warnings"].append({"reason": reason, "by": str(member.id)})
+        save_data(data)
+        await ch.send(f"⚠️ **{target}** has been warned. Reason: {reason} (Total warnings: {len(data[uid]['warnings'])})")
+
+    elif cmd == "warnings":
+        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
+            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
+            return
+        target = message.mentions[0] if message.mentions else member
+        data = get_data()
+        warns = data.get(str(target.id), {}).get("warnings", [])
+        if not warns:
+            await ch.send(f"✅ {target.mention} has no warnings.")
+            return
+        lines = [f"{i+1}. {w['reason']}" for i, w in enumerate(warns)]
+        embed = discord.Embed(title=f"⚠️ Warnings for {target}", description="\n".join(lines), color=discord.Color(0x808080))
+        await ch.send(embed=embed)
+
+    elif cmd == "say":
+        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
+            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
+            return
+        if not rest:
+            await ch.send(f"❌ Usage: `{user_prefix}say <message>`")
+            return
+        try:
+            await message.delete()
+        except:
+            pass
+        await ch.send(rest)
+
+    elif cmd == "setnick":
+        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
+            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
+            return
+        if not message.mentions:
+            await ch.send(f"❌ Usage: `{user_prefix}setnick @user <nickname>`")
+            return
+        target = message.mentions[0]
+        new_nick = " ".join(args[2:]) if len(args) > 2 else None
+        try:
+            if new_nick:
+                prefix_tag = get_prefix(target.id)
+                if prefix_tag:
+                    base = new_nick.split(" | ", 1)[1] if " | " in new_nick else new_nick
+                    new_nick = f"{prefix_tag} | {base}"
+                await target.edit(nick=new_nick)
+                await ch.send(f"✅ **{target.name}**'s nickname changed to **{new_nick}**.")
+            else:
+                await target.edit(nick=None)
+                await ch.send(f"✅ **{target.name}**'s nickname reset.")
+        except discord.Forbidden:
+            await ch.send("❌ I can't change that member's nickname.")
+
     # ── HELP ──
     elif cmd == "help":
         p = user_prefix
+        is_staff = any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", []))
         embed = discord.Embed(title=f"📖 Commands — prefix: `{p}`", color=discord.Color(0x808080))
-        embed.set_footer(text=f"Use {p}command — e.g. {p}beg or {p}daily")
-        embed.add_field(name="🪙 Tokens", value=f"`{p}beg` `{p}daily` `{p}roll <amount>` `{p}steal @user` `{p}balance` `{p}cash` `{p}lb`", inline=False)
-        embed.add_field(name="🎮 Fun", value=f"`{p}dice` `{p}coinflip` `{p}rps rock/paper/scissors` `{p}8ball <question>` `{p}ping`", inline=False)
-        embed.add_field(name="🛒 Shop", value=f"`{p}shop` `{p}turf` `{p}links`", inline=False)
-        embed.add_field(name="👤 Info", value=f"`{p}userinfo` `{p}serverinfo` `{p}prefix`", inline=False)
+        embed.set_footer(text=f"Use {p}command  e.g. {p}beg or {p}daily")
+        embed.add_field(name="🪙 Tokens", value=f"`{p}beg` `{p}daily` `{p}roll <amt>` `{p}steal @u` `{p}balance` `{p}cash` `{p}lb` `{p}ilb`", inline=False)
+        embed.add_field(name="🎮 Fun", value=f"`{p}dice` `{p}coinflip` `{p}rps rock/paper/scissors` `{p}8ball <q>` `{p}ping`", inline=False)
+        embed.add_field(name="🛒 Shop", value=f"`{p}shop` `{p}prices` `{p}turf` `{p}links`", inline=False)
+        embed.add_field(name="👤 Info", value=f"`{p}userinfo` `{p}serverinfo` `{p}botinfo` `{p}roles` `{p}roleinfo @r` `{p}invites`", inline=False)
+        embed.add_field(name="🏷️ Prefix", value=f"`{p}prefix` `{p}checkprefix @u` `{p}removeprefix`", inline=False)
+        embed.add_field(name="✏️ Nickname", value=f"`{p}nick <name>`", inline=False)
+        if is_staff:
+            embed.add_field(name="🔨 Staff Only", value=f"`{p}kick @u` `{p}ban @u` `{p}mute @u <min>` `{p}unmute @u` `{p}warn @u` `{p}warnings @u` `{p}say <msg>` `{p}setnick @u <name>`", inline=False)
         await ch.send(embed=embed)
 
 token = os.environ.get("DISCORD_TOKEN")

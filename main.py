@@ -447,50 +447,64 @@ async def giveaway(interaction: discord.Interaction, prize: str, minutes: int, w
     await interaction.channel.send(embed=result_embed)
     await interaction.channel.send(f"🎉 Congrats {winner_mentions}! You won **{prize}**!")
 
-@tree.command(name="giveaways", description="Start multiple giveaways at once (Staff only)")
+@tree.command(name="giveaways", description="Start multiple giveaways at once, each with its own prize and winner count (Staff only)")
 @app_commands.describe(
+    minutes="How long all giveaways last (in minutes)",
     prize1="First prize",
+    winners1="Winners for prize 1 (default: 1)",
     prize2="Second prize",
+    winners2="Winners for prize 2 (default: 1)",
     prize3="Third prize (optional)",
+    winners3="Winners for prize 3 (default: 1)",
     prize4="Fourth prize (optional)",
+    winners4="Winners for prize 4 (default: 1)",
     prize5="Fifth prize (optional)",
-    minutes="How long should each giveaway last (in minutes)?",
-    winners="How many winners per giveaway? (default: 1)"
+    winners5="Winners for prize 5 (default: 1)"
 )
 async def giveaways(
     interaction: discord.Interaction,
+    minutes: int,
     prize1: str,
     prize2: str,
-    minutes: int,
+    winners1: int = 1,
+    winners2: int = 1,
     prize3: str = None,
+    winners3: int = 1,
     prize4: str = None,
+    winners4: int = 1,
     prize5: str = None,
-    winners: int = 1
+    winners5: int = 1
 ):
     if not has_staff_role(interaction):
         await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
         return
 
-    prizes = [p for p in [prize1, prize2, prize3, prize4, prize5] if p]
-    end_time = discord.utils.utcnow().timestamp() + (minutes * 60)
+    entries = [
+        (prize1, winners1),
+        (prize2, winners2),
+    ]
+    if prize3: entries.append((prize3, winners3))
+    if prize4: entries.append((prize4, winners4))
+    if prize5: entries.append((prize5, winners5))
 
-    await interaction.response.send_message(f"✅ Starting **{len(prizes)}** giveaways!", ephemeral=True)
+    end_time = discord.utils.utcnow().timestamp() + (minutes * 60)
+    await interaction.response.send_message(f"✅ Starting **{len(entries)}** giveaways!", ephemeral=True)
 
     messages = []
-    for prize in prizes:
+    for prize, win_count in entries:
         embed = discord.Embed(
             title="🎉 GIVEAWAY 🎉",
-            description=f"**Prize:** {prize}\n\nReact with 🎉 to enter!\n\n**Winners:** {winners}\n**Ends:** <t:{int(end_time)}:R>",
+            description=f"**Prize:** {prize}\n\nReact with 🎉 to enter!\n\n**Winners:** {win_count}\n**Ends:** <t:{int(end_time)}:R>",
             color=discord.Color(0x808080)
         )
         embed.set_footer(text=f"Hosted by {interaction.user.display_name}")
         msg = await interaction.channel.send(embed=embed)
         await msg.add_reaction("🎉")
-        messages.append((msg, prize))
+        messages.append((msg, prize, win_count))
 
     await asyncio.sleep(minutes * 60)
 
-    for msg, prize in messages:
+    for msg, prize, win_count in messages:
         msg = await interaction.channel.fetch_message(msg.id)
         reaction = discord.utils.get(msg.reactions, emoji="🎉")
 
@@ -499,7 +513,7 @@ async def giveaways(
             continue
 
         users = [u async for u in reaction.users() if not u.bot]
-        pick_count = min(winners, len(users))
+        pick_count = min(win_count, len(users))
         picked = random.sample(users, pick_count)
         winner_mentions = ", ".join(w.mention for w in picked)
 

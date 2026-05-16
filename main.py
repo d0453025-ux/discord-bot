@@ -193,13 +193,6 @@ NORMAL_PRICES = """
 ➕ Extra Spawns (+5) — 75 Robux (stackable up to 5x)
 
 ─────────────────────────
-**🎯 AMMO CRATES**
-📦 **1 Crate = 20 Mags** — **50 Robux**
-┣ 1 Mag refills ALL your guns instantly
-┣ Each mag lasts **5 uses** before it's gone
-┗ Available for: 🔫 AR  •  🎯 Sniper  •  🔧 Pistol  •  💥 Shotgun
-
-─────────────────────────
 **💵 IN-GAME ITEMS**
 💰 Small Cash (10k) — 50 Robux
 💰 Medium Cash (25k) — 120 Robux 🔥 HOT DEAL
@@ -217,6 +210,13 @@ TURF_PRICES = """
 
 🏢 **Big Turf** — 1,000 Robux | 📦 12 Crates | 📊 10 Available
 ┗ 2 Levels: 🚪 Entry, 📦 Crates, 🎨 Custom Room, 😌 Chill Room, 🏋️ Training, 🥊 Boxing Arena
+
+─────────────────────────
+**🎯 AMMO CRATES (For Your Turf)**
+📦 **1 Crate = 20 Mags** — **50 Robux**
+┣ 1 Mag refills ALL your guns instantly
+┣ Each mag lasts **5 uses** before it's gone
+┗ Available for: 🔫 AR  •  🎯 Sniper  •  🔧 Pistol  •  💥 Shotgun
 
 ─────────────────────────
 🥊 **ARENA ROOM (Boxing / PvP)**
@@ -281,12 +281,18 @@ async def prices(interaction: discord.Interaction):
 
 @tree.command(name="shop", description="Show the shop with custom weapons and in-game items")
 async def normal_prices(interaction: discord.Interaction):
+    event = get_event()
     embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color(0x808080))
+    if event:
+        embed.set_footer(text=f"🎉 Active Event: {event}")
     await interaction.response.send_message(embed=embed)
 
 @tree.command(name="turf_prices", description="Show turf prices")
 async def turf_prices(interaction: discord.Interaction):
+    event = get_event()
     embed = discord.Embed(description=TURF_PRICES, color=discord.Color(0x808080))
+    if event:
+        embed.set_footer(text=f"🎉 Active Event: {event}")
     await interaction.response.send_message(embed=embed)
 
 @tree.command(name="game_links", description="Show game and links")
@@ -676,94 +682,8 @@ async def botinfo(interaction: discord.Interaction):
     embed.add_field(name="🎮 Game", value="[Hood Conflict](https://www.roblox.com/games/16627395079)", inline=True)
     await interaction.response.send_message(embed=embed)
 
-# ── PERSONAL PREFIX ───────────────────────────────────────────────────────────
-
-def get_prefix(user_id):
-    data = get_data()
-    return data.get(str(user_id), {}).get("prefix", None)
-
-def save_prefix(user_id, prefix):
-    data = get_data()
-    uid = str(user_id)
-    if uid not in data:
-        data[uid] = {"tokens": 0, "last_daily": None, "daily_streak": 0}
-    data[uid]["prefix"] = prefix
-    save_data(data)
-
 def delete_prefix(user_id):
-    data = get_data()
-    uid = str(user_id)
-    if uid in data and "prefix" in data[uid]:
-        del data[uid]["prefix"]
-        save_data(data)
-
-@tree.command(name="setprefix", description="Set your personal prefix (e.g. , or ! or Hc) — then use it instead of /")
-@app_commands.describe(prefix="Your prefix — e.g. ',' means you type ',beg' instead of '/beg'")
-async def setprefix(interaction: discord.Interaction, prefix: str):
-    if len(prefix) > 10:
-        await interaction.response.send_message("❌ Prefix must be 10 characters or less.", ephemeral=True)
-        return
-    save_prefix(interaction.user.id, prefix)
-    member = interaction.user
-    if isinstance(member, discord.Member):
-        base_name = member.display_name
-        # Strip existing prefix if present (format: "tag | name")
-        if " | " in base_name:
-            base_name = base_name.split(" | ", 1)[1]
-        new_nick = f"{prefix} | {base_name}"
-        try:
-            await member.edit(nick=new_nick)
-        except discord.Forbidden:
-            pass
-    embed = discord.Embed(
-        description=f"✅ Your personal prefix has been set to **{prefix}**!",
-        color=discord.Color(0x808080)
-    )
-    await interaction.response.send_message(embed=embed)
-
-@tree.command(name="myprefix", description="Check your personal prefix")
-async def myprefix(interaction: discord.Interaction):
-    prefix = get_prefix(interaction.user.id)
-    if not prefix:
-        await interaction.response.send_message("❌ You don't have a personal prefix set. Use `/setprefix` to set one.", ephemeral=True)
-        return
-    embed = discord.Embed(
-        description=f"🏷️ Your personal prefix is **{prefix}**",
-        color=discord.Color(0x808080)
-    )
-    await interaction.response.send_message(embed=embed)
-
-@tree.command(name="checkprefix", description="Check someone else's personal prefix")
-@app_commands.describe(member="The member to check")
-async def checkprefix(interaction: discord.Interaction, member: discord.Member):
-    prefix = get_prefix(member.id)
-    if not prefix:
-        await interaction.response.send_message(f"❌ **{member.display_name}** doesn't have a personal prefix set.", ephemeral=True)
-        return
-    embed = discord.Embed(
-        description=f"🏷️ **{member.display_name}**'s personal prefix is **{prefix}**",
-        color=discord.Color(0x808080)
-    )
-    await interaction.response.send_message(embed=embed)
-
-@tree.command(name="removeprefix", description="Remove your personal prefix (Staff can remove anyone's)")
-@app_commands.describe(member="Member to remove prefix from (Staff only, leave empty for yourself)")
-async def removeprefix(interaction: discord.Interaction, member: discord.Member = None):
-    if member and member.id != interaction.user.id:
-        if not has_staff_role(interaction):
-            await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to remove someone else's prefix.", ephemeral=True)
-            return
-    target = member or interaction.user
-    delete_prefix(target.id)
-    if isinstance(target, discord.Member):
-        base_name = target.display_name
-        if " | " in base_name:
-            base_name = base_name.split(" | ", 1)[1]
-        try:
-            await target.edit(nick=base_name if base_name != target.name else None)
-        except discord.Forbidden:
-            pass
-    await interaction.response.send_message(f"✅ Prefix removed for **{target.display_name}**.", ephemeral=True)
+    pass
 
 # ── TOKEN ECONOMY ─────────────────────────────────────────────────────────────
 
@@ -1198,17 +1118,18 @@ class PanelView(discord.ui.View):
         embed.add_field(name="🎭 Role List", value=role_display, inline=False)
         await interaction.response.edit_message(embed=embed, view=PanelView())
 
-    @discord.ui.button(label="🏷️ Remove Prefix", style=discord.ButtonStyle.red, row=1)
-    async def remove_prefix_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(RemovePrefixModal())
+    @discord.ui.button(label="🎉 Set Event", style=discord.ButtonStyle.green, row=1)
+    async def set_event_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(SetEventModal())
 
 def build_panel_embed():
     discounts = get_discounts()
+    event = get_event()
     embed = discord.Embed(title="⚙️ Owner Panel", description="Use the buttons below to manage your bot.", color=discord.Color(0x808080))
     embed.add_field(name="💰 Discounts", value=f"{len(discounts)} active discount(s)", inline=True)
     embed.add_field(name="🛒 Shop", value="View shop prices", inline=True)
     embed.add_field(name="📊 Server Info", value="View server details", inline=True)
-    embed.add_field(name="🏷️ Remove Prefix", value="Remove any user's prefix", inline=True)
+    embed.add_field(name="🎉 Current Event", value=event if event else "None", inline=True)
     return embed
 
 @tree.command(name="panel", description="Owner-only control panel")
@@ -1218,478 +1139,41 @@ async def panel(interaction: discord.Interaction):
         return
     await interaction.response.send_message(embed=build_panel_embed(), view=PanelView(), ephemeral=True)
 
-# ── PERSONAL PREFIX COMMAND HANDLER ───────────────────────────────────────────
 
-@bot.event
-async def on_message(message):
-    if message.author.bot:
-        return
+# ── EVENT / SEASON NAME ────────────────────────────────────────────────────────
 
-    user_prefix = get_prefix(message.author.id)
-    if not user_prefix:
-        return
+def get_event():
+    data = get_data()
+    return data.get('_event', None)
 
-    content = message.content.strip()
-    prefix_lower = user_prefix.lower()
-    content_lower = content.lower()
+def set_event(name):
+    data = get_data()
+    data['_event'] = name
+    save_data(data)
 
-    # Support both "prefix command" (with space) and "prefixcommand" (no space)
-    if not content_lower.startswith(prefix_lower):
-        return
+def clear_event():
+    data = get_data()
+    data.pop('_event', None)
+    save_data(data)
 
-    # Make sure something follows the prefix
-    after_prefix = content[len(user_prefix):]
-    if not after_prefix.strip():
-        return
+class SetEventModal(discord.ui.Modal, title="Set Season / Event Name"):
+    event_name = discord.ui.TextInput(
+        label="Event Name (leave blank to clear)",
+        placeholder="e.g. Christmas, Easter, Summer Event",
+        required=False,
+        max_length=50
+    )
 
-    args = after_prefix.strip().split()
-    if not args:
-        return
-
-    cmd = args[0].lower()
-    rest = " ".join(args[1:])
-    member = message.author
-    ch = message.channel
-
-    # ── TOKENS ──
-    if cmd == "beg":
-        cooldown = get_beg_cooldown(member.id)
-        if cooldown > 0:
-            h, s = divmod(cooldown, 3600)
-            m = s // 60
-            await ch.send(f"⏳ {member.mention} You can beg again in **{h}h {m}m**.")
-            return
-        amount = random.randint(50, 500)
-        add_tokens(member.id, amount)
-        set_beg_time(member.id)
-        if isinstance(member, discord.Member):
-            await check_token_roles(member)
-        embed = discord.Embed(description=f"🎁 {member.mention} begged and got **{amount}** tokens!", color=discord.Color(0x808080))
-        embed.set_footer(text=f"Total: {get_tokens(member.id)} tokens | Next beg in 12h")
-        await ch.send(embed=embed)
-
-    elif cmd == "daily":
-        streak = get_daily_streak(member.id)
-        if streak > 0:
-            await ch.send(f"❌ {member.mention} You already claimed your daily! Come back tomorrow.")
-            return
-        new_streak = streak + 1
-        amount = 100 + (new_streak - 1)
-        add_tokens(member.id, amount)
-        set_daily(member.id, new_streak)
-        if isinstance(member, discord.Member):
-            await check_token_roles(member)
-        embed = discord.Embed(description=f"📅 {member.mention} claimed daily reward! **{amount}** tokens", color=discord.Color(0x808080))
-        embed.add_field(name="Streak", value=f"🔥 {new_streak} day(s)")
-        embed.set_footer(text=f"Total: {get_tokens(member.id)} tokens")
-        await ch.send(embed=embed)
-
-    elif cmd == "roll":
-        if not args[1:] or not args[1].isdigit():
-            await ch.send(f"❌ Usage: `{user_prefix} roll <amount>`")
-            return
-        bet = int(args[1])
-        tokens = get_tokens(member.id)
-        if bet <= 0:
-            await ch.send("❌ Bet must be more than 0!")
-            return
-        if tokens < bet:
-            await ch.send(f"❌ You only have **{tokens}** tokens!")
-            return
-        if random.choice([True, False]):
-            add_tokens(member.id, bet)
-            embed = discord.Embed(description=f"🎲 {member.mention} **WON!** +**{bet}** tokens!", color=discord.Color(0x808080))
+    async def on_submit(self, interaction: discord.Interaction):
+        name = self.event_name.value.strip()
+        if name:
+            set_event(name)
+            await interaction.response.send_message(f"✅ Event set to **{name}**! It will now show in shop and turf prices.", ephemeral=True)
         else:
-            remove_tokens(member.id, bet)
-            embed = discord.Embed(description=f"🎲 {member.mention} **LOST!** -{bet} tokens!", color=discord.Color(0x808080))
-        embed.set_footer(text=f"Total: {get_tokens(member.id)} tokens")
-        await ch.send(embed=embed)
-        if isinstance(member, discord.Member):
-            await check_token_roles(member)
-
-    elif cmd in ("balance", "bal"):
-        target = message.mentions[0] if message.mentions else member
-        tokens = get_tokens(target.id)
-        embed = discord.Embed(description=f"💰 {target.mention} has **{tokens}** tokens", color=discord.Color(0x808080))
-        await ch.send(embed=embed)
-
-    elif cmd == "cash":
-        target = message.mentions[0] if message.mentions else member
-        tokens = get_tokens(target.id)
-        if tokens >= 1000000:
-            status = "Rich MF 💎"
-        elif tokens >= 25000:
-            status = "Daily Active 🔥"
-        elif tokens >= 10000:
-            status = "Rising ⭐"
-        elif tokens >= 5000:
-            status = "Just Starting 🌱"
-        else:
-            status = "Broke 😔"
-        embed = discord.Embed(title="💵 Hood Conflict Cash", color=discord.Color(0x808080))
-        if isinstance(target, discord.Member):
-            embed.set_thumbnail(url=target.display_avatar.url)
-        embed.add_field(name="👤 Player", value=target.mention, inline=True)
-        embed.add_field(name="💰 Balance", value=f"**${tokens:,}**", inline=True)
-        embed.add_field(name="📊 Status", value=status, inline=True)
-        await ch.send(embed=embed)
-
-    elif cmd == "steal":
-        if not message.mentions:
-            await ch.send(f"❌ Usage: `{user_prefix} steal @user`")
-            return
-        target = message.mentions[0]
-        if target.id == member.id:
-            await ch.send("❌ You can't steal from yourself!")
-            return
-        tokens = get_tokens(member.id)
-        if tokens < 5000:
-            await ch.send(f"❌ You need at least **5,000** tokens to steal! You have {tokens}.")
-            return
-        if random.randint(1, 100) <= 40:
-            amount = random.randint(10, 200)
-            remove_tokens(target.id, amount)
-            add_tokens(member.id, amount)
-            embed = discord.Embed(description=f"🔓 {member.mention} stole **{amount}** tokens from {target.mention}!", color=discord.Color(0x808080))
-        else:
-            embed = discord.Embed(description=f"🔒 {member.mention} tried to steal but **FAILED!** {target.mention} caught them!", color=discord.Color(0x808080))
-        await ch.send(embed=embed)
-
-    elif cmd in ("leaderboard", "lb", "top"):
-        data = get_data()
-        sorted_users = sorted(data.items(), key=lambda x: x[1].get("tokens", 0), reverse=True)[:10]
-        lines = [f"{i+1}. <@{uid}> — **{ud.get('tokens', 0)}** tokens" for i, (uid, ud) in enumerate(sorted_users)]
-        embed = discord.Embed(title="💰 TOKEN LEADERBOARD", description="\n".join(lines) or "No data yet", color=discord.Color(0x808080))
-        await ch.send(embed=embed)
-
-    # ── FUN ──
-    elif cmd == "dice":
-        await ch.send(f"🎲 {member.mention} rolled a **{random.randint(1, 6)}**!")
-
-    elif cmd == "coinflip":
-        await ch.send(f"🪙 {member.mention} — **{random.choice(['Heads', 'Tails'])}**!")
-
-    elif cmd == "rps":
-        if not args[1:] or args[1].lower() not in ("rock", "paper", "scissors"):
-            await ch.send(f"❌ Usage: `{user_prefix} rps rock/paper/scissors`")
-            return
-        choices = ["rock", "paper", "scissors"]
-        emojis = {"rock": "🪨", "paper": "📄", "scissors": "✂️"}
-        choice = args[1].lower()
-        bot_choice = random.choice(choices)
-        if choice == bot_choice:
-            result = "Tie! 🤝"
-        elif (choice == "rock" and bot_choice == "scissors") or \
-             (choice == "paper" and bot_choice == "rock") or \
-             (choice == "scissors" and bot_choice == "paper"):
-            result = "You **win**! 🎉"
-        else:
-            result = "You **lose**! 😔"
-        await ch.send(f"{member.mention} {emojis[choice]} vs {emojis[bot_choice]} — {result}")
-
-    elif cmd == "8ball":
-        if not rest:
-            await ch.send(f"❌ Usage: `{user_prefix} 8ball <question>`")
-            return
-        embed = discord.Embed(title="🎱 Magic 8 Ball", color=discord.Color(0x808080))
-        embed.add_field(name="❓ Question", value=rest, inline=False)
-        embed.add_field(name="💬 Answer", value=random.choice(EIGHT_BALL_RESPONSES), inline=False)
-        await ch.send(embed=embed)
-
-    elif cmd == "ping":
-        await ch.send(f"🏓 {member.mention} Pong! **{round(bot.latency * 1000)}ms**")
-
-    # ── SHOP / PRICES ──
-    elif cmd == "shop":
-        embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color(0x808080))
-        await ch.send(embed=embed)
-
-    elif cmd in ("turf", "turf_prices"):
-        embed = discord.Embed(description=TURF_PRICES, color=discord.Color(0x808080))
-        await ch.send(embed=embed)
-
-    elif cmd == "links":
-        embed = discord.Embed(description=GAME_AND_LINKS, color=discord.Color(0x808080))
-        await ch.send(embed=embed)
-
-    # ── PROFILE / INFO ──
-    elif cmd in ("prefix", "myprefix"):
-        await ch.send(f"🏷️ {member.mention} Your personal prefix is **{user_prefix}**")
-
-    elif cmd == "checkprefix":
-        target = message.mentions[0] if message.mentions else None
-        if not target:
-            await ch.send(f"❌ Usage: `{user_prefix}checkprefix @user`")
-            return
-        p = get_prefix(target.id)
-        await ch.send(f"🏷️ {target.mention}'s prefix is **{p}**" if p else f"❌ {target.mention} has no prefix set.")
-
-    elif cmd == "removeprefix":
-        delete_prefix(member.id)
-        await ch.send(f"✅ {member.mention} Your prefix has been removed.")
-
-    elif cmd == "userinfo":
-        target = message.mentions[0] if message.mentions else member
-        if isinstance(target, discord.Member):
-            roles = [r.mention for r in target.roles if r.name != "@everyone"]
-            embed = discord.Embed(title=f"👤 {target}", color=discord.Color(0x808080))
-            embed.set_thumbnail(url=target.display_avatar.url)
-            embed.add_field(name="🆔 ID", value=target.id, inline=True)
-            embed.add_field(name="📅 Joined", value=f"<t:{int(target.joined_at.timestamp())}:D>", inline=True)
-            embed.add_field(name="🎂 Created", value=f"<t:{int(target.created_at.timestamp())}:D>", inline=True)
-            embed.add_field(name="🎭 Roles", value=", ".join(roles) if roles else "None", inline=False)
-            await ch.send(embed=embed)
-
-    elif cmd == "serverinfo":
-        guild = message.guild
-        if guild:
-            total = guild.member_count
-            bots = sum(1 for m in guild.members if m.bot)
-            humans = total - bots
-            roles = [r.mention for r in reversed(guild.roles) if r.name != "@everyone"]
-            role_display = ", ".join(roles[:20]) + (f" (+{len(roles)-20} more)" if len(roles) > 20 else "") if roles else "None"
-            embed = discord.Embed(title=f"📊 {guild.name}", color=discord.Color(0x808080))
-            if guild.icon:
-                embed.set_thumbnail(url=guild.icon.url)
-            embed.add_field(name="🆔 Server ID", value=guild.id, inline=True)
-            embed.add_field(name="👑 Owner", value=f"<@{guild.owner_id}>", inline=True)
-            embed.add_field(name="📅 Created", value=f"<t:{int(guild.created_at.timestamp())}:D>", inline=True)
-            embed.add_field(name="👥 Total Members", value=total, inline=True)
-            embed.add_field(name="🧑 Humans", value=humans, inline=True)
-            embed.add_field(name="🤖 Bots", value=bots, inline=True)
-            embed.add_field(name="💬 Text Channels", value=len(guild.text_channels), inline=True)
-            embed.add_field(name="🔊 Voice Channels", value=len(guild.voice_channels), inline=True)
-            embed.add_field(name="📁 Categories", value=len(guild.categories), inline=True)
-            embed.add_field(name="🎭 Role Count", value=len(roles), inline=True)
-            embed.add_field(name="⚡ Boost Level", value=f"Level {guild.premium_tier} ({guild.premium_subscription_count} boosts)", inline=True)
-            embed.add_field(name="🔒 Verification", value=str(guild.verification_level).title(), inline=True)
-            embed.add_field(name="🎭 Roles", value=role_display, inline=False)
-            await ch.send(embed=embed)
-
-    elif cmd == "botinfo":
-        uptime_seconds = int(time.time() - START_TIME) if START_TIME else 0
-        h, rem = divmod(uptime_seconds, 3600)
-        m2, s2 = divmod(rem, 60)
-        total_members = sum(g.member_count for g in bot.guilds)
-        embed = discord.Embed(title="🤖 Bot Info — Hood Conflict", color=discord.Color(0x808080))
-        if bot.user.display_avatar:
-            embed.set_thumbnail(url=bot.user.display_avatar.url)
-        embed.add_field(name="🤖 Name", value=str(bot.user), inline=True)
-        embed.add_field(name="🆔 Bot ID", value=bot.user.id, inline=True)
-        embed.add_field(name="📡 Latency", value=f"{round(bot.latency * 1000)}ms", inline=True)
-        embed.add_field(name="⏱️ Uptime", value=f"{h}h {m2}m {s2}s", inline=True)
-        embed.add_field(name="🌍 Servers", value=len(bot.guilds), inline=True)
-        embed.add_field(name="👥 Total Members", value=total_members, inline=True)
-        await ch.send(embed=embed)
-
-    elif cmd == "roles":
-        guild = message.guild
-        if guild:
-            role_list = [r.mention for r in reversed(guild.roles) if r.name != "@everyone"]
-            embed = discord.Embed(title=f"🎭 Roles in {guild.name}", description=", ".join(role_list) if role_list else "No roles", color=discord.Color(0x808080))
-            await ch.send(embed=embed)
-
-    elif cmd == "roleinfo":
-        if not message.role_mentions:
-            await ch.send(f"❌ Usage: `{user_prefix}roleinfo @role`")
-            return
-        role = message.role_mentions[0]
-        embed = discord.Embed(title=f"🎭 {role.name}", color=role.color)
-        embed.add_field(name="🆔 ID", value=role.id, inline=True)
-        embed.add_field(name="👥 Members", value=len(role.members), inline=True)
-        embed.add_field(name="🎨 Color", value=str(role.color), inline=True)
-        embed.add_field(name="📌 Mentionable", value="Yes" if role.mentionable else "No", inline=True)
-        embed.add_field(name="🔼 Hoisted", value="Yes" if role.hoist else "No", inline=True)
-        embed.add_field(name="📅 Created", value=f"<t:{int(role.created_at.timestamp())}:D>", inline=True)
-        await ch.send(embed=embed)
-
-    elif cmd == "invites":
-        try:
-            server_invites = await message.guild.invites()
-            if not server_invites:
-                await ch.send("No active invites found.")
-                return
-            lines = [f"🔗 `{inv.code}` — by {inv.inviter.mention if inv.inviter else 'Unknown'} — **{inv.uses}** uses" for inv in server_invites]
-            embed = discord.Embed(title="📨 Server Invites", description="\n".join(lines), color=discord.Color(0x808080))
-            await ch.send(embed=embed)
-        except discord.Forbidden:
-            await ch.send("❌ I need **Manage Guild** permission to view invites.")
-
-    elif cmd in ("invites_leaderboard", "ilb"):
-        data = get_data()
-        sorted_users = sorted(data.items(), key=lambda x: x[1].get("invites", 0), reverse=True)[:10]
-        lines = [f"{i+1}. <@{uid}> — **{ud.get('invites', 0)}** invites" for i, (uid, ud) in enumerate(sorted_users) if ud.get("invites", 0) > 0]
-        embed = discord.Embed(title="📨 INVITE LEADERBOARD", description="\n".join(lines) if lines else "No invite data yet.", color=discord.Color(0x808080))
-        await ch.send(embed=embed)
-
-    elif cmd == "nick":
-        if not isinstance(member, discord.Member):
-            return
-        new_nick = rest if rest else None
-        try:
-            if new_nick:
-                prefix_tag = get_prefix(member.id)
-                if prefix_tag:
-                    base = new_nick.split(" | ", 1)[1] if " | " in new_nick else new_nick
-                    new_nick = f"{prefix_tag} | {base}"
-                await member.edit(nick=new_nick)
-                await ch.send(f"✅ {member.mention} Nickname changed to **{new_nick}**.")
-            else:
-                await member.edit(nick=None)
-                await ch.send(f"✅ {member.mention} Nickname reset.")
-        except discord.Forbidden:
-            await ch.send("❌ I don't have permission to change your nickname.")
-
-    elif cmd == "prices":
-        embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color(0x808080))
-        await ch.send(embed=embed)
-
-    # ── STAFF COMMANDS ──
-    elif cmd == "kick":
-        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
-            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
-            return
-        if not message.mentions:
-            await ch.send(f"❌ Usage: `{user_prefix}kick @user <reason>`")
-            return
-        target = message.mentions[0]
-        reason = " ".join(args[2:]) if len(args) > 2 else "No reason provided"
-        try:
-            await target.kick(reason=reason)
-            await ch.send(f"✅ **{target}** has been kicked. Reason: {reason}")
-        except discord.Forbidden:
-            await ch.send("❌ I don't have permission to kick that member.")
-
-    elif cmd == "ban":
-        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
-            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
-            return
-        if not message.mentions:
-            await ch.send(f"❌ Usage: `{user_prefix}ban @user <reason>`")
-            return
-        target = message.mentions[0]
-        reason = " ".join(args[2:]) if len(args) > 2 else "No reason provided"
-        try:
-            await target.ban(reason=reason)
-            await ch.send(f"✅ **{target}** has been banned. Reason: {reason}")
-        except discord.Forbidden:
-            await ch.send("❌ I don't have permission to ban that member.")
-
-    elif cmd == "mute":
-        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
-            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
-            return
-        if not message.mentions:
-            await ch.send(f"❌ Usage: `{user_prefix}mute @user <minutes>`")
-            return
-        target = message.mentions[0]
-        minutes = int(args[2]) if len(args) > 2 and args[2].isdigit() else 10
-        try:
-            await target.timeout(timedelta(minutes=minutes))
-            await ch.send(f"✅ **{target}** muted for **{minutes}** minutes.")
-        except discord.Forbidden:
-            await ch.send("❌ I don't have permission to mute that member.")
-
-    elif cmd == "unmute":
-        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
-            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
-            return
-        if not message.mentions:
-            await ch.send(f"❌ Usage: `{user_prefix}unmute @user`")
-            return
-        target = message.mentions[0]
-        try:
-            await target.timeout(None)
-            await ch.send(f"✅ **{target}** has been unmuted.")
-        except discord.Forbidden:
-            await ch.send("❌ I don't have permission to unmute that member.")
-
-    elif cmd == "warn":
-        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
-            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
-            return
-        if not message.mentions:
-            await ch.send(f"❌ Usage: `{user_prefix}warn @user <reason>`")
-            return
-        target = message.mentions[0]
-        reason = " ".join(args[2:]) if len(args) > 2 else "No reason provided"
-        data = get_data()
-        uid = str(target.id)
-        if uid not in data:
-            data[uid] = {"tokens": 0, "last_daily": None, "daily_streak": 0}
-        if "warnings" not in data[uid]:
-            data[uid]["warnings"] = []
-        data[uid]["warnings"].append({"reason": reason, "by": str(member.id)})
-        save_data(data)
-        await ch.send(f"⚠️ **{target}** has been warned. Reason: {reason} (Total warnings: {len(data[uid]['warnings'])})")
-
-    elif cmd == "warnings":
-        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
-            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
-            return
-        target = message.mentions[0] if message.mentions else member
-        data = get_data()
-        warns = data.get(str(target.id), {}).get("warnings", [])
-        if not warns:
-            await ch.send(f"✅ {target.mention} has no warnings.")
-            return
-        lines = [f"{i+1}. {w['reason']}" for i, w in enumerate(warns)]
-        embed = discord.Embed(title=f"⚠️ Warnings for {target}", description="\n".join(lines), color=discord.Color(0x808080))
-        await ch.send(embed=embed)
-
-    elif cmd == "say":
-        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
-            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
-            return
-        if not rest:
-            await ch.send(f"❌ Usage: `{user_prefix}say <message>`")
-            return
-        try:
-            await message.delete()
-        except:
-            pass
-        await ch.send(rest)
-
-    elif cmd == "setnick":
-        if not any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", [])):
-            await ch.send(f"❌ You need the **{STAFF_ROLE_NAME}** role.")
-            return
-        if not message.mentions:
-            await ch.send(f"❌ Usage: `{user_prefix}setnick @user <nickname>`")
-            return
-        target = message.mentions[0]
-        new_nick = " ".join(args[2:]) if len(args) > 2 else None
-        try:
-            if new_nick:
-                prefix_tag = get_prefix(target.id)
-                if prefix_tag:
-                    base = new_nick.split(" | ", 1)[1] if " | " in new_nick else new_nick
-                    new_nick = f"{prefix_tag} | {base}"
-                await target.edit(nick=new_nick)
-                await ch.send(f"✅ **{target.name}**'s nickname changed to **{new_nick}**.")
-            else:
-                await target.edit(nick=None)
-                await ch.send(f"✅ **{target.name}**'s nickname reset.")
-        except discord.Forbidden:
-            await ch.send("❌ I can't change that member's nickname.")
-
-    # ── HELP ──
-    elif cmd == "help":
-        p = user_prefix
-        is_staff = any(r.name == STAFF_ROLE_NAME for r in getattr(member, "roles", []))
-        embed = discord.Embed(title=f"📖 Commands — prefix: `{p}`", color=discord.Color(0x808080))
-        embed.set_footer(text=f"Use {p}command  e.g. {p}beg or {p}daily")
-        embed.add_field(name="🪙 Tokens", value=f"`{p}beg` `{p}daily` `{p}roll <amt>` `{p}steal @u` `{p}balance` `{p}cash` `{p}lb` `{p}ilb`", inline=False)
-        embed.add_field(name="🎮 Fun", value=f"`{p}dice` `{p}coinflip` `{p}rps rock/paper/scissors` `{p}8ball <q>` `{p}ping`", inline=False)
-        embed.add_field(name="🛒 Shop", value=f"`{p}shop` `{p}prices` `{p}turf` `{p}links`", inline=False)
-        embed.add_field(name="👤 Info", value=f"`{p}userinfo` `{p}serverinfo` `{p}botinfo` `{p}roles` `{p}roleinfo @r` `{p}invites`", inline=False)
-        embed.add_field(name="🏷️ Prefix", value=f"`{p}prefix` `{p}checkprefix @u` `{p}removeprefix`", inline=False)
-        embed.add_field(name="✏️ Nickname", value=f"`{p}nick <name>`", inline=False)
-        if is_staff:
-            embed.add_field(name="🔨 Staff Only", value=f"`{p}kick @u` `{p}ban @u` `{p}mute @u <min>` `{p}unmute @u` `{p}warn @u` `{p}warnings @u` `{p}say <msg>` `{p}setnick @u <name>`", inline=False)
-        await ch.send(embed=embed)
+            clear_event()
+            await interaction.response.send_message("✅ Event name cleared.", ephemeral=True)
 
 token = os.environ.get("DISCORD_TOKEN")
 if not token:
-    raise ValueError("DISCORD_TOKEN environment variable is not set. Please add your Discord bot token as a secret.")
+    raise ValueError("DISCORD_TOKEN environment variable is not set.")
 bot.run(token)

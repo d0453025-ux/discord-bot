@@ -189,6 +189,13 @@ NORMAL_PRICES = """
 ➕ Extra Spawns (+5) — 75 Robux (stackable up to 5x)
 
 ─────────────────────────
+**🎯 AMMO CRATES**
+📦 **1 Crate = 20 Mags** — **50 Robux**
+┣ 1 Mag refills ALL your guns instantly
+┣ Each mag lasts **5 uses** before it's gone
+┗ Available for: 🔫 AR  •  🎯 Sniper  •  🔧 Pistol  •  💥 Shotgun
+
+─────────────────────────
 **💵 IN-GAME ITEMS**
 💰 Small Cash (10k) — 50 Robux
 💰 Medium Cash (25k) — 120 Robux 🔥 HOT DEAL
@@ -197,8 +204,9 @@ NORMAL_PRICES = """
 
 TURF_PRICES = """
 **🏟️ TURF TYPES & AVAILABILITY**
-🏠 **Small Turf** — 300 Robux | 📦 5 Crates | 📊 5 Available
-┗ 2 Rooms: 🛋️ Main Area, 📦 Crate Room
+🏠 **Small Turf** — 🆓 FREE | 📦 5 Crates | 📊 10 Available 🎉
+┣ 2 Rooms: 🛋️ Main Area, 📦 Crate Room
+┗ ⚠️ Limited — grab yours while they last!
 
 🏠 **Mid Turf** — 800 Robux | 📦 8 Crates | 📊 6 Available
 ┗ 4 Rooms: 🏋️ Training Area, 🛋️ Main Area, 🎨 Custom Room, 📦 Crate Room

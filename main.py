@@ -38,7 +38,7 @@ STAFF_ROLE_NAME = "Hc/botacces"
 # ⬆️ EDIT ABOVE ⬆️
 
 # ⬇️ SET YOUR DISCORD USER ID HERE (right-click yourself → Copy User ID) ⬇️
-OWNER_ID = 0  # e.g. 123456789012345678
+OWNER_ID = 1262338624402493460
 # ⬆️ EDIT ABOVE ⬆️
 
 def has_staff_role(interaction: discord.Interaction) -> bool:

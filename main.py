@@ -4,9 +4,75 @@ import asyncio
 import random
 import json
 import threading
+import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import datetime
 from discord import app_commands
+
+# ── STARTUP BANNER ────────────────────────────────────────────────────────────
+_BANNERS = [
+    r"""
+  ██╗  ██╗ ██████╗  ██████╗ ██████╗
+  ██║  ██║██╔════╝ ██╔════╝ ██╔══██╗
+  ███████║██║      ██║      ██║  ██║
+  ██╔══██║██║      ██║      ██║  ██║
+  ██║  ██║╚██████╗ ╚██████╗ ██████╔╝
+  ╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚═════╝
+   ██████╗ ██████╗ ███╗  ██╗███████╗
+  ██╔════╝██╔═══██╗████╗ ██║██╔════╝
+  ██║     ██║   ██║██╔██╗██║█████╗
+  ██║     ██║   ██║██║╚████║██╔══╝
+  ╚██████╗╚██████╔╝██║ ╚███║██║
+   ╚═════╝ ╚═════╝ ╚═╝  ╚══╝╚═╝
+    """,
+    r"""
+  /##   /## /######   /######  /######
+ | ##  | ##| ##__  ## /##__  ##| ##__  ##
+ | ##  | ##| ##  \ ##| ##  \__/| ##  \ ##
+ | ########| ##  | ##| ##      | ##  | ##
+ | ##__  ##| ##  | ##| ##      | ##  | ##
+ | ##  | ##| ##  | ##| ##    ##| ##  | ##
+ | ##  | ##| ######/ |  ######/| ######/
+ |__/  |__/|_____/   \______/ |_____/
+   /######   /######  /##   /## /########### /##    /## /##
+  /##__  ## /##__  ##| ### | ##| ##_____/| ##   | ##|_/
+ | ##  \__/| ##  \ ##| ####| ##| ##      | ##   | ##  /##
+ | ##      | ##  | ##| ## ## ##| #####   | ##   | ## | ##
+ | ##      | ##  | ##| ##  ####| ##__/   | ##   | ## | ##
+ | ##    ##| ##  | ##| ##\  ###| ##      | ##   | ## | ##
+ |  ######/|  ######/| ## \  ##| ##      |  ######/ | ##
+  \______/  \______/ |__/  \__/|__/       \______/ |__/
+    """,
+    r"""
+  +-------------------------------+
+  |   H O O D   C O N F L I C T  |
+  |   ~~~  Discord Bot  ~~~       |
+  |   [ Protecting the block ]   |
+  +-------------------------------+
+    """,
+    r"""
+  ┌─────────────────────────────────┐
+  │  🔫  HOOD CONFLICT BOT  🔫      │
+  │  ─────────────────────────────  │
+  │  Territory. Respect. Power.     │
+  │  Status: ONLINE & ARMED 💪      │
+  └─────────────────────────────────┘
+    """,
+    r"""
+   _   _  ___   ___  ____     ____ ___  _   _ _____ _     ___ ____ _____
+  | | | |/ _ \ / _ \|  _ \   / ___/ _ \| \ | |  ___| |   |_ _/ ___|_   _|
+  | |_| | | | | | | | | | | | |  | | | |  \| | |_  | |    | | |     | |
+  |  _  | |_| | |_| | |_| | | |__| |_| | |\  |  _| | |___ | | |___  | |
+  |_| |_|\___/ \___/|____/   \____\___/|_| \_|_|   |_____|___\____| |_|
+    """,
+]
+
+def _print_banner():
+    banner = random.choice(_BANNERS)
+    print("\033[96m" + banner + "\033[0m")
+    print("\033[93m  Bot starting up...\033[0m\n")
+
+_print_banner()
 
 # ── KEEP-ALIVE SERVER (satisfies Replit deployment health check) ───────────────
 class _HealthHandler(BaseHTTPRequestHandler):
@@ -28,8 +94,23 @@ threading.Thread(target=_run_health_server, daemon=True).start()
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
-bot = discord.Client(intents=intents)
+bot = discord.Client(
+    intents=intents,
+    allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=True)
+)
 tree = app_commands.CommandTree(bot)
+
+# ── RATE LIMITING ─────────────────────────────────────────────────────────────
+_cmd_cooldowns: dict[int, float] = {}
+_CMD_COOLDOWN_SECS = 2.0
+
+def _check_rate_limit(user_id: int) -> bool:
+    now = time.monotonic()
+    last = _cmd_cooldowns.get(user_id, 0)
+    if now - last < _CMD_COOLDOWN_SECS:
+        return False
+    _cmd_cooldowns[user_id] = now
+    return True
 
 # ⬇️ EASY TO EDIT - Staff Role Name ⬇️
 # Users must have this role to use giveaway, poll, ban, and kick commands
@@ -421,8 +502,12 @@ async def say(interaction: discord.Interaction, message: str):
     if not has_staff_role(interaction):
         await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
         return
+    if len(message) > 1900:
+        await interaction.response.send_message("❌ Message too long (max 1900 characters).", ephemeral=True)
+        return
+    safe = message.replace("@everyone", "@\u200beveryone").replace("@here", "@\u200bhere")
     await interaction.response.send_message("✅ Sent!", ephemeral=True)
-    await interaction.channel.send(message)
+    await interaction.channel.send(safe, allowed_mentions=discord.AllowedMentions.none())
 
 # ── MODERATION (extra) ────────────────────────────────────────────────────────
 

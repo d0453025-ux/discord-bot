@@ -111,21 +111,22 @@ def _check_rate_limit(user_id: int) -> bool:
     _cmd_cooldowns[user_id] = now
     return True
 
-STAFF_ROLE_NAME = "HCBotacces"
-STAFF_ROLE_ID = 1513292437462978690
+OWNER_ID = 1262338624402493460
 
+def get_staff_users():
+    data = get_data()
+    return data.get("_staff_users", [])
 
-async def has_staff_role(interaction: discord.Interaction) -> bool:
-    if not interaction.guild:
-        return False
-    try:
-        member = await interaction.guild.fetch_member(interaction.user.id)
-        for r in member.roles:
-            if r.id == STAFF_ROLE_ID or r.name.lower() == STAFF_ROLE_NAME.lower():
-                return True
-        return False
-    except Exception:
-        return False
+def save_staff_users(users):
+    data = get_data()
+    data["_staff_users"] = users
+    save_data(data)
+
+def has_staff_role(interaction: discord.Interaction) -> bool:
+    uid = interaction.user.id
+    if uid == OWNER_ID:
+        return True
+    return uid in get_staff_users()
 
 
 # ========== DATABASE ==========
@@ -289,7 +290,7 @@ async def on_reaction_add(reaction, user):
     option4="Fourth option (optional)"
 )
 async def poll(interaction: discord.Interaction, question: str, option1: str, option2: str, option3: str = None, option4: str = None):
-    if not await has_staff_role(interaction):
+    if not has_staff_role(interaction):
         await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
         return
     options = [option1, option2]
@@ -323,7 +324,7 @@ async def poll(interaction: discord.Interaction, question: str, option1: str, op
     winners="How many winners? (default: 1)"
 )
 async def giveaway(interaction: discord.Interaction, prize: str, minutes: int, winners: int = 1):
-    if not await has_staff_role(interaction):
+    if not has_staff_role(interaction):
         await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
         return
     end_time = discord.utils.utcnow().timestamp() + (minutes * 60)
@@ -392,7 +393,7 @@ async def giveaways(
     prize5: str = None,
     winners5: int = 1
 ):
-    if not await has_staff_role(interaction):
+    if not has_staff_role(interaction):
         await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
         return
 
@@ -462,25 +463,61 @@ async def ping(interaction: discord.Interaction):
     latency = round(bot.latency * 1000)
     await interaction.response.send_message(f"🏓 Pong! Latency: **{latency}ms**")
 
-@tree.command(name="staffcheck", description="Debug: show your roles and IDs")
+@tree.command(name="staffcheck", description="Check if you have staff access")
 async def staffcheck(interaction: discord.Interaction):
-    lines = [f"**User ID:** `{interaction.user.id}`"]
-    try:
-        member = await interaction.guild.fetch_member(interaction.user.id)
-        roles = member.roles
-        if roles:
-            lines.append(f"**Roles ({len(roles)}):**")
-            for r in roles:
-                lines.append(f"`{r.id}` — {r.name}")
-        else:
-            lines.append("**Roles:** none found")
-        staff_found = any(r.id == STAFF_ROLE_ID or r.name.lower() == STAFF_ROLE_NAME.lower() for r in roles)
-    except Exception as e:
-        lines.append(f"❌ fetch_member failed: {e}")
-        staff_found = False
-    lines.append(f"\n**Looking for ID:** `{STAFF_ROLE_ID}`")
-    lines.append(f"**Result:** {'✅ PASS' if staff_found else '❌ FAIL'}")
+    uid = interaction.user.id
+    is_owner = uid == OWNER_ID
+    in_list = uid in get_staff_users()
+    result = is_owner or in_list
+    lines = [
+        f"**User ID:** `{uid}`",
+        f"**Owner:** {'✅ Yes' if is_owner else '❌ No'}",
+        f"**In staff list:** {'✅ Yes' if in_list else '❌ No'}",
+        f"**Access:** {'✅ GRANTED' if result else '❌ DENIED'}"
+    ]
     await interaction.response.send_message("\n".join(lines), ephemeral=True)
+
+@tree.command(name="staff_add", description="Give someone staff access (Owner only)")
+@app_commands.describe(user="The user to give staff access to")
+async def staff_add(interaction: discord.Interaction, user: discord.User):
+    if interaction.user.id != OWNER_ID:
+        await interaction.response.send_message("❌ Only the bot owner can use this.", ephemeral=True)
+        return
+    users = get_staff_users()
+    if user.id in users:
+        await interaction.response.send_message(f"⚠️ {user.mention} already has staff access.", ephemeral=True)
+        return
+    users.append(user.id)
+    save_staff_users(users)
+    await interaction.response.send_message(f"✅ **{user.name}** has been given staff access.", ephemeral=True)
+
+@tree.command(name="staff_remove", description="Remove someone's staff access (Owner only)")
+@app_commands.describe(user="The user to remove staff access from")
+async def staff_remove(interaction: discord.Interaction, user: discord.User):
+    if interaction.user.id != OWNER_ID:
+        await interaction.response.send_message("❌ Only the bot owner can use this.", ephemeral=True)
+        return
+    users = get_staff_users()
+    if user.id not in users:
+        await interaction.response.send_message(f"⚠️ {user.mention} doesn't have staff access.", ephemeral=True)
+        return
+    users.remove(user.id)
+    save_staff_users(users)
+    await interaction.response.send_message(f"✅ **{user.name}**'s staff access has been removed.", ephemeral=True)
+
+@tree.command(name="staff_list", description="Show all users with staff access")
+async def staff_list(interaction: discord.Interaction):
+    if interaction.user.id != OWNER_ID:
+        await interaction.response.send_message("❌ Only the bot owner can use this.", ephemeral=True)
+        return
+    users = get_staff_users()
+    embed = discord.Embed(title="👥 Staff Access List", color=discord.Color(0x808080))
+    embed.add_field(name="👑 Owner", value=f"<@{OWNER_ID}>", inline=False)
+    if users:
+        embed.add_field(name="✅ Staff Users", value="\n".join([f"<@{uid}>" for uid in users]), inline=False)
+    else:
+        embed.add_field(name="✅ Staff Users", value="None added yet", inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 # ── RECYCLE TURFS ─────────────────────────────────────────────────────────────
@@ -523,7 +560,7 @@ async def recycleturf(interaction: discord.Interaction):
     description="Description of the turf (rooms, extras, etc.)"
 )
 async def recycleturf_add(interaction: discord.Interaction, name: str, price: str, description: str):
-    if not await has_staff_role(interaction):
+    if not has_staff_role(interaction):
         await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
         return
     if len(name) > 50:
@@ -545,7 +582,7 @@ async def recycleturf_add(interaction: discord.Interaction, name: str, price: st
 @tree.command(name="recycleturf_remove", description="Remove a recycled turf from the list (Staff only)")
 @app_commands.describe(number="The number of the turf to remove (use /recycleturf to see the numbers)")
 async def recycleturf_remove(interaction: discord.Interaction, number: int):
-    if not await has_staff_role(interaction):
+    if not has_staff_role(interaction):
         await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
         return
     data = get_data()

@@ -113,7 +113,7 @@ def _check_rate_limit(user_id: int) -> bool:
 
 # ⬇️ EASY TO EDIT - Staff Role Name ⬇️
 # Users must have this role to use giveaway, poll, ban, and kick commands
-STAFF_ROLE_NAME = "Staff Team"
+STAFF_ROLE_NAME = "HCBotacces"
 # ⬆️ EDIT ABOVE ⬆️
 
 

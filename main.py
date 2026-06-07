@@ -116,8 +116,11 @@ STAFF_ROLE_ID = 1513285028606640250
 
 
 def has_staff_role(interaction: discord.Interaction) -> bool:
-    if isinstance(interaction.user, discord.Member):
-        return any(r.id == STAFF_ROLE_ID for r in interaction.user.roles)
+    member = interaction.user
+    if interaction.guild and not isinstance(member, discord.Member):
+        member = interaction.guild.get_member(interaction.user.id)
+    if isinstance(member, discord.Member):
+        return any(r.id == STAFF_ROLE_ID for r in member.roles)
     return False
 
 

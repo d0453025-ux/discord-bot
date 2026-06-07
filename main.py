@@ -456,6 +456,21 @@ async def ping(interaction: discord.Interaction):
     latency = round(bot.latency * 1000)
     await interaction.response.send_message(f"🏓 Pong! Latency: **{latency}ms**")
 
+@tree.command(name="staffcheck", description="Debug: show your roles and IDs")
+async def staffcheck(interaction: discord.Interaction):
+    member = interaction.user
+    if interaction.guild and not isinstance(member, discord.Member):
+        member = interaction.guild.get_member(interaction.user.id)
+    if not isinstance(member, discord.Member):
+        await interaction.response.send_message("❌ Could not fetch member data.", ephemeral=True)
+        return
+    role_lines = "\n".join([f"`{r.id}` — {r.name}" for r in member.roles])
+    staff_found = any(r.id == STAFF_ROLE_ID for r in member.roles)
+    await interaction.response.send_message(
+        f"**Your roles:**\n{role_lines}\n\n**Staff ID looking for:** `{STAFF_ROLE_ID}`\n**Staff check:** {'✅ PASS' if staff_found else '❌ FAIL'}",
+        ephemeral=True
+    )
+
 
 # ── RECYCLE TURFS ─────────────────────────────────────────────────────────────
 

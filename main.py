@@ -127,12 +127,9 @@ Add-ons: neon underglow, custom rims, horn sounds
 📦 Extra Crate — 100 Robux
 🔤 Names on Walls — 25 Robux
 🎨 Custom Room — 250 Robux
-🎭 Special Turf Design / Theme — 150–300 Robux
 🪴 Extra Decorations — 50–150 Robux
 💨 Animated Effects (smoke, sparkles) — 75–200 Robux
 🎵 Exclusive Turf Music — 100–150 Robux
-🪧 Custom Turf Nameplate — 50–100 Robux
-📦 Extra Storage / Expansion Slot — 100–200 Robux
 """
 
 GAME_AND_LINKS = """
@@ -142,7 +139,7 @@ GAME_AND_LINKS = """
 
 ### 👥 [Roblox Group](https://www.roblox.com/share/g/628331601)
 
-### 🪙 [Discord Server](https://discord.gg/rpC8RahxHs)
+### 🪙 [Discord Server](https://discord.gg/eC8XYa97qS)
 """
 
 # ⬆️ EDIT ABOVE ⬆️

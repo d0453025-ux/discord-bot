@@ -126,8 +126,6 @@ def has_staff_role(interaction: discord.Interaction) -> bool:
         return any(r.name == STAFF_ROLE_NAME for r in interaction.user.roles)
     return False
 
-# Warnings storage (resets on bot restart)
-warnings_db = {}
 
 # ========== DATABASE ==========
 DATA_FILE = "data.json"
@@ -327,45 +325,6 @@ async def poll(interaction: discord.Interaction, question: str, option1: str, op
     for i in range(len(options)):
         await message.add_reaction(emojis[i])
 
-@tree.command(name="kick", description="Kick a member (Staff only)")
-@app_commands.describe(member="The member to kick", reason="Reason for kick")
-async def kick(interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
-    if not has_staff_role(interaction):
-        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
-        return
-    if not interaction.guild.me.guild_permissions.kick_members:
-        await interaction.response.send_message("❌ I don't have permission to kick members.", ephemeral=True)
-        return
-    try:
-        await member.kick(reason=reason)
-        embed = discord.Embed(
-            title="👢 Member Kicked",
-            description=f"**{member}** has been kicked.\n**Reason:** {reason}",
-            color=discord.Color(0x808080)
-        )
-        await interaction.response.send_message(embed=embed)
-    except discord.Forbidden:
-        await interaction.response.send_message("❌ I can't kick that member. They may have a higher role than me.", ephemeral=True)
-
-@tree.command(name="ban", description="Ban a member (Staff only)")
-@app_commands.describe(member="The member to ban", reason="Reason for ban")
-async def ban(interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
-    if not has_staff_role(interaction):
-        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
-        return
-    if not interaction.guild.me.guild_permissions.ban_members:
-        await interaction.response.send_message("❌ I don't have permission to ban members.", ephemeral=True)
-        return
-    try:
-        await member.ban(reason=reason)
-        embed = discord.Embed(
-            title="🔨 Member Banned",
-            description=f"**{member}** has been banned.\n**Reason:** {reason}",
-            color=discord.Color(0x808080)
-        )
-        await interaction.response.send_message(embed=embed)
-    except discord.Forbidden:
-        await interaction.response.send_message("❌ I can't ban that member. They may have a higher role than me.", ephemeral=True)
 
 @tree.command(name="giveaway", description="Start a giveaway (Staff only)")
 @app_commands.describe(
@@ -496,82 +455,6 @@ async def giveaways(
 # ── SERVER INFO ──────────────────────────────────────────────────────────────
 
 
-@tree.command(name="say", description="Make the bot say something (Staff only)")
-@app_commands.describe(message="What should the bot say?")
-async def say(interaction: discord.Interaction, message: str):
-    if not has_staff_role(interaction):
-        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
-        return
-    if len(message) > 1900:
-        await interaction.response.send_message("❌ Message too long (max 1900 characters).", ephemeral=True)
-        return
-    safe = message.replace("@everyone", "@\u200beveryone").replace("@here", "@\u200bhere")
-    await interaction.response.send_message("✅ Sent!", ephemeral=True)
-    await interaction.channel.send(safe, allowed_mentions=discord.AllowedMentions.none())
-
-# ── MODERATION (extra) ────────────────────────────────────────────────────────
-
-@tree.command(name="mute", description="Timeout (mute) a member (Staff only)")
-@app_commands.describe(member="Member to mute", minutes="Duration in minutes (default 10)")
-async def mute(interaction: discord.Interaction, member: discord.Member, minutes: int = 10):
-    if not has_staff_role(interaction):
-        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role.", ephemeral=True)
-        return
-    try:
-        until = discord.utils.utcnow() + datetime.timedelta(minutes=minutes)
-        await member.timeout(until, reason=f"Muted by {interaction.user}")
-        embed = discord.Embed(title="🔇 Member Muted", description=f"**{member}** has been muted for **{minutes} minute(s)**.", color=discord.Color(0x808080))
-        await interaction.response.send_message(embed=embed)
-    except discord.Forbidden:
-        await interaction.response.send_message("❌ I don't have permission to timeout that member.", ephemeral=True)
-
-@tree.command(name="unmute", description="Remove timeout from a member (Staff only)")
-@app_commands.describe(member="Member to unmute")
-async def unmute(interaction: discord.Interaction, member: discord.Member):
-    if not has_staff_role(interaction):
-        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role.", ephemeral=True)
-        return
-    try:
-        await member.timeout(None, reason=f"Unmuted by {interaction.user}")
-        embed = discord.Embed(title="🔊 Member Unmuted", description=f"**{member}** has been unmuted.", color=discord.Color(0x808080))
-        await interaction.response.send_message(embed=embed)
-    except discord.Forbidden:
-        await interaction.response.send_message("❌ I don't have permission to unmute that member.", ephemeral=True)
-
-@tree.command(name="warn", description="Warn a member (Staff only)")
-@app_commands.describe(member="Member to warn", reason="Reason for the warning")
-async def warn(interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
-    if not has_staff_role(interaction):
-        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role.", ephemeral=True)
-        return
-    if member.id not in warnings_db:
-        warnings_db[member.id] = []
-    warnings_db[member.id].append({"reason": reason, "moderator": str(interaction.user)})
-    count = len(warnings_db[member.id])
-    embed = discord.Embed(
-        title="⚠️ Member Warned",
-        description=f"**{member}** has been warned.\n**Reason:** {reason}\n**Total warnings:** {count}",
-        color=discord.Color(0x808080)
-    )
-    await interaction.response.send_message(embed=embed)
-    try:
-        await member.send(f"⚠️ You have been warned in **{interaction.guild.name}**.\n**Reason:** {reason}\n**Total warnings:** {count}")
-    except:
-        pass
-
-@tree.command(name="warnings", description="Check a member's warnings (Staff only)")
-@app_commands.describe(member="Member to check")
-async def check_warnings(interaction: discord.Interaction, member: discord.Member):
-    if not has_staff_role(interaction):
-        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role.", ephemeral=True)
-        return
-    user_warns = warnings_db.get(member.id, [])
-    if not user_warns:
-        await interaction.response.send_message(f"✅ **{member}** has no warnings.", ephemeral=True)
-        return
-    lines = [f"{i+1}. {w['reason']} — by {w['moderator']}" for i, w in enumerate(user_warns)]
-    embed = discord.Embed(title=f"⚠️ Warnings for {member}", description="\n".join(lines), color=discord.Color(0x808080))
-    await interaction.response.send_message(embed=embed)
 
 # ── HELP / INFO ───────────────────────────────────────────────────────────────
 
@@ -581,8 +464,6 @@ async def help_command(interaction: discord.Interaction):
     embed.add_field(name="💰 Prices", value="`/prices` `/shop` `/turf_prices` `/game_links`", inline=False)
     embed.add_field(name="🎉 Giveaways (Staff only)", value="`/giveaway` `/giveaways`", inline=False)
     embed.add_field(name="📊 Polls (Staff only)", value="`/poll`", inline=False)
-    embed.add_field(name="🛡️ Moderation (Staff only)", value="`/kick` `/ban` `/mute` `/unmute` `/warn` `/warnings` `/say`", inline=False)
-    embed.add_field(name="🏷️ Nicknames", value="`/nick` `/setnick`", inline=False)
     embed.add_field(name="❓ Info", value="`/help` `/ping`", inline=False)
     await interaction.response.send_message(embed=embed)
 
@@ -590,42 +471,6 @@ async def help_command(interaction: discord.Interaction):
 async def ping(interaction: discord.Interaction):
     latency = round(bot.latency * 1000)
     await interaction.response.send_message(f"🏓 Pong! Latency: **{latency}ms**")
-
-
-# ── NICKNAME COMMANDS ─────────────────────────────────────────────────────────
-
-@tree.command(name="nick", description="Change your own nickname")
-@app_commands.describe(nickname="Your new nickname (leave empty to reset)")
-async def nick(interaction: discord.Interaction, nickname: str = None):
-    member = interaction.user
-    if not isinstance(member, discord.Member):
-        await interaction.response.send_message("❌ This command can only be used in a server.", ephemeral=True)
-        return
-    try:
-        if nickname:
-            await member.edit(nick=nickname)
-            await interaction.response.send_message(f"✅ Your nickname has been changed to **{nickname}**.", ephemeral=True)
-        else:
-            await member.edit(nick=None)
-            await interaction.response.send_message("✅ Your nickname has been reset.", ephemeral=True)
-    except discord.Forbidden:
-        await interaction.response.send_message("❌ I don't have permission to change your nickname.", ephemeral=True)
-
-@tree.command(name="setnick", description="Change a member's nickname (Staff only)")
-@app_commands.describe(member="The member to rename", nickname="Their new nickname (leave empty to reset)")
-async def setnick(interaction: discord.Interaction, member: discord.Member, nickname: str = None):
-    if not has_staff_role(interaction):
-        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
-        return
-    try:
-        if nickname:
-            await member.edit(nick=nickname)
-            await interaction.response.send_message(f"✅ **{member.name}**'s nickname has been changed to **{nickname}**.")
-        else:
-            await member.edit(nick=None)
-            await interaction.response.send_message(f"✅ **{member.name}**'s nickname has been reset.")
-    except discord.Forbidden:
-        await interaction.response.send_message("❌ I can't change that member's nickname. They may have a higher role than me.", ephemeral=True)
 
 # ── OWNER PANEL ───────────────────────────────────────────────────────────────
 

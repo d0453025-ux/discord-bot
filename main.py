@@ -6,7 +6,6 @@ import json
 import threading
 import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import datetime
 from discord import app_commands
 
 # ── STARTUP BANNER ────────────────────────────────────────────────────────────
@@ -114,12 +113,9 @@ def _check_rate_limit(user_id: int) -> bool:
 
 # ⬇️ EASY TO EDIT - Staff Role Name ⬇️
 # Users must have this role to use giveaway, poll, ban, and kick commands
-STAFF_ROLE_NAME = "Hc/botacces"
+STAFF_ROLE_NAME = "Staff Team"
 # ⬆️ EDIT ABOVE ⬆️
 
-# ⬇️ SET YOUR DISCORD USER ID HERE (right-click yourself → Copy User ID) ⬇️
-OWNER_ID = 1262338624402493460
-# ⬆️ EDIT ABOVE ⬆️
 
 def has_staff_role(interaction: discord.Interaction) -> bool:
     if isinstance(interaction.user, discord.Member):
@@ -227,13 +223,6 @@ GAME_AND_LINKS = """
 async def on_ready():
     await tree.sync()
     print(f"✅ Bot is ONLINE as {bot.user}")
-    bot.loop.create_task(discount_expiry_loop())
-
-async def discount_expiry_loop():
-    await bot.wait_until_ready()
-    while not bot.is_closed():
-        check_expired_discounts()
-        await asyncio.sleep(1800)  # check every 30 minutes
 
 @tree.command(name="prices", description="Show the price menu")
 async def prices(interaction: discord.Interaction):
@@ -247,18 +236,12 @@ async def prices(interaction: discord.Interaction):
 
 @tree.command(name="shop", description="Show the shop with custom weapons and in-game items")
 async def normal_prices(interaction: discord.Interaction):
-    event = get_event()
     embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color(0x808080))
-    if event:
-        embed.set_footer(text=f"🎉 Active Event: {event}")
     await interaction.response.send_message(embed=embed)
 
 @tree.command(name="turf_prices", description="Show turf prices")
 async def turf_prices(interaction: discord.Interaction):
-    event = get_event()
     embed = discord.Embed(description=TURF_PRICES, color=discord.Color(0x808080))
-    if event:
-        embed.set_footer(text=f"🎉 Active Event: {event}")
     await interaction.response.send_message(embed=embed)
 
 @tree.command(name="game_links", description="Show game and links")
@@ -472,248 +455,6 @@ async def ping(interaction: discord.Interaction):
     latency = round(bot.latency * 1000)
     await interaction.response.send_message(f"🏓 Pong! Latency: **{latency}ms**")
 
-# ── OWNER PANEL ───────────────────────────────────────────────────────────────
-
-DISCOUNTABLE_ITEMS = [
-    ("Custom Draco", "250"),
-    ("Custom SG", "300"),
-    ("Custom Golden Gun", "350"),
-    ("Custom Name + Level Bundle", "150"),
-    ("Ammo Crate (20 Mags)", "50"),
-    ("Small Cash 10k", "50"),
-    ("Medium Cash 25k", "120"),
-    ("Large Cash 50k", "200"),
-    ("Mid Turf", "800"),
-    ("Big Turf", "1000"),
-]
-
-def get_discounts():
-    data = get_data()
-    return data.get("_discounts", {})
-
-def save_discount(item, original, discounted, expiry_iso):
-    data = get_data()
-    if "_discounts" not in data:
-        data["_discounts"] = {}
-    data["_discounts"][item] = {"original": original, "discounted": discounted, "expiry": expiry_iso}
-    save_data(data)
-
-def remove_discount(item):
-    data = get_data()
-    if "_discounts" in data and item in data["_discounts"]:
-        del data["_discounts"][item]
-        save_data(data)
-
-def check_expired_discounts():
-    data = get_data()
-    discounts = data.get("_discounts", {})
-    changed = False
-    now = datetime.datetime.now()
-    for item in list(discounts.keys()):
-        try:
-            expiry = datetime.datetime.fromisoformat(discounts[item]["expiry"])
-            if now >= expiry:
-                del discounts[item]
-                changed = True
-        except:
-            pass
-    if changed:
-        data["_discounts"] = discounts
-        save_data(data)
-
-def build_discounts_embed():
-    discounts = get_discounts()
-    embed = discord.Embed(title="💰 Active Discounts", color=discord.Color(0x808080))
-    if not discounts:
-        embed.description = "No active discounts right now."
-    else:
-        lines = []
-        for item, d in discounts.items():
-            try:
-                expiry = datetime.datetime.fromisoformat(d["expiry"])
-                ts = int(expiry.timestamp())
-                lines.append(f"**{item}**: ~~{d['original']} Robux~~ → **{d['discounted']} Robux** | Expires <t:{ts}:R>")
-            except:
-                lines.append(f"**{item}**: **{d['discounted']} Robux**")
-        embed.description = "\n".join(lines)
-    return embed
-
-# ── PANEL MODALS ──
-
-class DiscountModal(discord.ui.Modal, title="Set Discount"):
-    def __init__(self, item_name, original_price):
-        super().__init__()
-        self.item_name = item_name
-        self.original_price = original_price
-
-    price = discord.ui.TextInput(label="Discounted Price (Robux)", placeholder="e.g. 200", max_length=10)
-    expiry = discord.ui.TextInput(label="Expiry Date (DD/MM/YYYY)", placeholder="e.g. 31/12/2025", max_length=10)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        try:
-            day, month, year = self.expiry.value.strip().split("/")
-            expiry_dt = datetime.datetime(int(year), int(month), int(day), 23, 59, 59)
-        except:
-            await interaction.response.send_message("❌ Invalid date format. Use DD/MM/YYYY.", ephemeral=True)
-            return
-        if expiry_dt <= datetime.datetime.now():
-            await interaction.response.send_message("❌ Expiry date must be in the future.", ephemeral=True)
-            return
-        save_discount(self.item_name, self.original_price, self.price.value.strip(), expiry_dt.isoformat())
-        ts = int(expiry_dt.timestamp())
-        await interaction.response.send_message(
-            f"✅ Discount set!\n**{self.item_name}**: ~~{self.original_price} Robux~~ → **{self.price.value} Robux**\nExpires <t:{ts}:F>",
-            ephemeral=True
-        )
-
-class RemovePrefixModal(discord.ui.Modal, title="Remove User Prefix"):
-    user_id = discord.ui.TextInput(label="User ID", placeholder="Right-click user → Copy User ID", max_length=25)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        uid = self.user_id.value.strip().strip("<@!>")
-        try:
-            int(uid)
-        except:
-            await interaction.response.send_message("❌ Invalid user ID.", ephemeral=True)
-            return
-        delete_prefix(int(uid))
-        await interaction.response.send_message(f"✅ Prefix removed for <@{uid}>.", ephemeral=True)
-
-# ── PANEL VIEWS ──
-
-class DiscountItemSelect(discord.ui.Select):
-    def __init__(self, action):
-        self.action = action
-        if action == "add":
-            options = [discord.SelectOption(label=f"{name} ({price} Rbx)", value=f"{name}|{price}") for name, price in DISCOUNTABLE_ITEMS]
-            placeholder = "Choose an item to discount..."
-        else:
-            discounts = get_discounts()
-            options = [discord.SelectOption(label=item, value=item) for item in discounts.keys()] or [discord.SelectOption(label="No active discounts", value="none")]
-            placeholder = "Choose a discount to remove..."
-        super().__init__(placeholder=placeholder, options=options[:25])
-
-    async def callback(self, interaction: discord.Interaction):
-        if self.action == "add":
-            name, price = self.values[0].split("|", 1)
-            await interaction.response.send_modal(DiscountModal(name, price))
-        else:
-            if self.values[0] == "none":
-                await interaction.response.send_message("No discounts to remove.", ephemeral=True)
-                return
-            remove_discount(self.values[0])
-            await interaction.response.send_message(f"✅ Discount removed for **{self.values[0]}**.", ephemeral=True)
-
-class DiscountView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=120)
-
-    @discord.ui.button(label="➕ Add Discount", style=discord.ButtonStyle.green)
-    async def add_discount(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = discord.ui.View(timeout=60)
-        view.add_item(DiscountItemSelect("add"))
-        await interaction.response.send_message("Select an item to discount:", view=view, ephemeral=True)
-
-    @discord.ui.button(label="🗑️ Remove Discount", style=discord.ButtonStyle.red)
-    async def remove_discount_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        discounts = get_discounts()
-        if not discounts:
-            await interaction.response.send_message("No active discounts to remove.", ephemeral=True)
-            return
-        view = discord.ui.View(timeout=60)
-        view.add_item(DiscountItemSelect("remove"))
-        await interaction.response.send_message("Select a discount to remove:", view=view, ephemeral=True)
-
-    @discord.ui.button(label="🔙 Back", style=discord.ButtonStyle.grey)
-    async def back(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.edit_message(embed=build_panel_embed(), view=PanelView())
-
-class PanelView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=300)
-
-    @discord.ui.button(label="💰 Discounts", style=discord.ButtonStyle.green, row=0)
-    async def discounts_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.edit_message(embed=build_discounts_embed(), view=DiscountView())
-
-    @discord.ui.button(label="🛒 Shop", style=discord.ButtonStyle.blurple, row=0)
-    async def shop_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = discord.Embed(description=NORMAL_PRICES, color=discord.Color(0x808080))
-        await interaction.response.edit_message(embed=embed, view=PanelView())
-
-    @discord.ui.button(label="📊 Server Info", style=discord.ButtonStyle.blurple, row=0)
-    async def serverinfo_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        guild = interaction.guild
-        total = guild.member_count
-        bots = sum(1 for m in guild.members if m.bot)
-        roles = [r.mention for r in reversed(guild.roles) if r.name != "@everyone"]
-        role_display = ", ".join(roles[:20]) + (f" (+{len(roles)-20} more)" if len(roles) > 20 else "") if roles else "None"
-        embed = discord.Embed(title=f"📊 {guild.name}", color=discord.Color(0x808080))
-        if guild.icon:
-            embed.set_thumbnail(url=guild.icon.url)
-        embed.add_field(name="👥 Total", value=total, inline=True)
-        embed.add_field(name="🧑 Humans", value=total - bots, inline=True)
-        embed.add_field(name="🤖 Bots", value=bots, inline=True)
-        embed.add_field(name="💬 Text", value=len(guild.text_channels), inline=True)
-        embed.add_field(name="🔊 Voice", value=len(guild.voice_channels), inline=True)
-        embed.add_field(name="🎭 Roles", value=len(roles), inline=True)
-        embed.add_field(name="🎭 Role List", value=role_display, inline=False)
-        await interaction.response.edit_message(embed=embed, view=PanelView())
-
-    @discord.ui.button(label="🎉 Set Event", style=discord.ButtonStyle.green, row=1)
-    async def set_event_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(SetEventModal())
-
-def build_panel_embed():
-    discounts = get_discounts()
-    event = get_event()
-    embed = discord.Embed(title="⚙️ Owner Panel", description="Use the buttons below to manage your bot.", color=discord.Color(0x808080))
-    embed.add_field(name="💰 Discounts", value=f"{len(discounts)} active discount(s)", inline=True)
-    embed.add_field(name="🛒 Shop", value="View shop prices", inline=True)
-    embed.add_field(name="📊 Server Info", value="View server details", inline=True)
-    embed.add_field(name="🎉 Current Event", value=event if event else "None", inline=True)
-    return embed
-
-@tree.command(name="panel", description="Owner-only control panel")
-async def panel(interaction: discord.Interaction):
-    if interaction.user.id != OWNER_ID:
-        await interaction.response.send_message("❌ This panel is only accessible by the bot owner.", ephemeral=True)
-        return
-    await interaction.response.send_message(embed=build_panel_embed(), view=PanelView(), ephemeral=True)
-
-
-# ── EVENT / SEASON NAME ────────────────────────────────────────────────────────
-
-def get_event():
-    data = get_data()
-    return data.get('_event', None)
-
-def set_event(name):
-    data = get_data()
-    data['_event'] = name
-    save_data(data)
-
-def clear_event():
-    data = get_data()
-    data.pop('_event', None)
-    save_data(data)
-
-class SetEventModal(discord.ui.Modal, title="Set Season / Event Name"):
-    event_name = discord.ui.TextInput(
-        label="Event Name (leave blank to clear)",
-        placeholder="e.g. Christmas, Easter, Summer Event",
-        required=False,
-        max_length=50
-    )
-
-    async def on_submit(self, interaction: discord.Interaction):
-        name = self.event_name.value.strip()
-        if name:
-            set_event(name)
-            await interaction.response.send_message(f"✅ Event set to **{name}**! It will now show in shop and turf prices.", ephemeral=True)
-        else:
-            clear_event()
-            await interaction.response.send_message("✅ Event name cleared.", ephemeral=True)
 
 token = os.environ.get("DISCORD_TOKEN")
 if not token:

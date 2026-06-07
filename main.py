@@ -115,13 +115,14 @@ STAFF_ROLE_NAME = "HCBotacces"
 STAFF_ROLE_ID = 1513285028606640250
 
 
-def has_staff_role(interaction: discord.Interaction) -> bool:
-    member = interaction.user
-    if interaction.guild and not isinstance(member, discord.Member):
-        member = interaction.guild.get_member(interaction.user.id)
-    if isinstance(member, discord.Member):
+async def has_staff_role(interaction: discord.Interaction) -> bool:
+    if not interaction.guild:
+        return False
+    try:
+        member = await interaction.guild.fetch_member(interaction.user.id)
         return any(r.id == STAFF_ROLE_ID for r in member.roles)
-    return False
+    except Exception:
+        return False
 
 
 # ========== DATABASE ==========
@@ -285,7 +286,7 @@ async def on_reaction_add(reaction, user):
     option4="Fourth option (optional)"
 )
 async def poll(interaction: discord.Interaction, question: str, option1: str, option2: str, option3: str = None, option4: str = None):
-    if not has_staff_role(interaction):
+    if not await has_staff_role(interaction):
         await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
         return
     options = [option1, option2]
@@ -319,7 +320,7 @@ async def poll(interaction: discord.Interaction, question: str, option1: str, op
     winners="How many winners? (default: 1)"
 )
 async def giveaway(interaction: discord.Interaction, prize: str, minutes: int, winners: int = 1):
-    if not has_staff_role(interaction):
+    if not await has_staff_role(interaction):
         await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
         return
     end_time = discord.utils.utcnow().timestamp() + (minutes * 60)
@@ -388,7 +389,7 @@ async def giveaways(
     prize5: str = None,
     winners5: int = 1
 ):
-    if not has_staff_role(interaction):
+    if not await has_staff_role(interaction):
         await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
         return
 
@@ -460,15 +461,9 @@ async def ping(interaction: discord.Interaction):
 
 @tree.command(name="staffcheck", description="Debug: show your roles and IDs")
 async def staffcheck(interaction: discord.Interaction):
-    user = interaction.user
-    user_type = type(user).__name__
-    lines = [f"**User type:** `{user_type}`", f"**User ID:** `{user.id}`"]
-
-    member = user if isinstance(user, discord.Member) else None
-    if interaction.guild and not member:
-        member = interaction.guild.get_member(user.id)
-
-    if member:
+    lines = [f"**User ID:** `{interaction.user.id}`"]
+    try:
+        member = await interaction.guild.fetch_member(interaction.user.id)
         roles = member.roles
         if roles:
             lines.append(f"**Roles ({len(roles)}):**")
@@ -476,10 +471,10 @@ async def staffcheck(interaction: discord.Interaction):
                 lines.append(f"`{r.id}` — {r.name}")
         else:
             lines.append("**Roles:** none found")
-    else:
-        lines.append("❌ Could not fetch Member object")
-
-    staff_found = member and any(r.id == STAFF_ROLE_ID for r in member.roles)
+        staff_found = any(r.id == STAFF_ROLE_ID for r in roles)
+    except Exception as e:
+        lines.append(f"❌ fetch_member failed: {e}")
+        staff_found = False
     lines.append(f"\n**Looking for ID:** `{STAFF_ROLE_ID}`")
     lines.append(f"**Result:** {'✅ PASS' if staff_found else '❌ FAIL'}")
     await interaction.response.send_message("\n".join(lines), ephemeral=True)
@@ -525,7 +520,7 @@ async def recycleturf(interaction: discord.Interaction):
     description="Description of the turf (rooms, extras, etc.)"
 )
 async def recycleturf_add(interaction: discord.Interaction, name: str, price: str, description: str):
-    if not has_staff_role(interaction):
+    if not await has_staff_role(interaction):
         await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
         return
     if len(name) > 50:
@@ -547,7 +542,7 @@ async def recycleturf_add(interaction: discord.Interaction, name: str, price: st
 @tree.command(name="recycleturf_remove", description="Remove a recycled turf from the list (Staff only)")
 @app_commands.describe(number="The number of the turf to remove (use /recycleturf to see the numbers)")
 async def recycleturf_remove(interaction: discord.Interaction, number: int):
-    if not has_staff_role(interaction):
+    if not await has_staff_role(interaction):
         await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
         return
     data = get_data()

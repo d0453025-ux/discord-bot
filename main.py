@@ -120,7 +120,10 @@ async def has_staff_role(interaction: discord.Interaction) -> bool:
         return False
     try:
         member = await interaction.guild.fetch_member(interaction.user.id)
-        return any(r.id == STAFF_ROLE_ID for r in member.roles)
+        for r in member.roles:
+            if r.id == STAFF_ROLE_ID or r.name.lower() == STAFF_ROLE_NAME.lower():
+                return True
+        return False
     except Exception:
         return False
 
@@ -471,7 +474,7 @@ async def staffcheck(interaction: discord.Interaction):
                 lines.append(f"`{r.id}` — {r.name}")
         else:
             lines.append("**Roles:** none found")
-        staff_found = any(r.id == STAFF_ROLE_ID for r in roles)
+        staff_found = any(r.id == STAFF_ROLE_ID or r.name.lower() == STAFF_ROLE_NAME.lower() for r in roles)
     except Exception as e:
         lines.append(f"❌ fetch_member failed: {e}")
         staff_found = False

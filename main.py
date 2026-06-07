@@ -111,15 +111,13 @@ def _check_rate_limit(user_id: int) -> bool:
     _cmd_cooldowns[user_id] = now
     return True
 
-# ⬇️ EASY TO EDIT - Staff Role Name ⬇️
-# Users must have this role to use giveaway, poll, ban, and kick commands
 STAFF_ROLE_NAME = "HCBotacces"
-# ⬆️ EDIT ABOVE ⬆️
+STAFF_ROLE_ID = 1513285028606640250
 
 
 def has_staff_role(interaction: discord.Interaction) -> bool:
     if isinstance(interaction.user, discord.Member):
-        return any(r.name == STAFF_ROLE_NAME for r in interaction.user.roles)
+        return any(r.id == STAFF_ROLE_ID for r in interaction.user.roles)
     return False
 
 

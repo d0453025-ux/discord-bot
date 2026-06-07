@@ -460,18 +460,29 @@ async def ping(interaction: discord.Interaction):
 
 @tree.command(name="staffcheck", description="Debug: show your roles and IDs")
 async def staffcheck(interaction: discord.Interaction):
-    member = interaction.user
-    if interaction.guild and not isinstance(member, discord.Member):
-        member = interaction.guild.get_member(interaction.user.id)
-    if not isinstance(member, discord.Member):
-        await interaction.response.send_message("❌ Could not fetch member data.", ephemeral=True)
-        return
-    role_lines = "\n".join([f"`{r.id}` — {r.name}" for r in member.roles])
-    staff_found = any(r.id == STAFF_ROLE_ID for r in member.roles)
-    await interaction.response.send_message(
-        f"**Your roles:**\n{role_lines}\n\n**Staff ID looking for:** `{STAFF_ROLE_ID}`\n**Staff check:** {'✅ PASS' if staff_found else '❌ FAIL'}",
-        ephemeral=True
-    )
+    user = interaction.user
+    user_type = type(user).__name__
+    lines = [f"**User type:** `{user_type}`", f"**User ID:** `{user.id}`"]
+
+    member = user if isinstance(user, discord.Member) else None
+    if interaction.guild and not member:
+        member = interaction.guild.get_member(user.id)
+
+    if member:
+        roles = member.roles
+        if roles:
+            lines.append(f"**Roles ({len(roles)}):**")
+            for r in roles:
+                lines.append(f"`{r.id}` — {r.name}")
+        else:
+            lines.append("**Roles:** none found")
+    else:
+        lines.append("❌ Could not fetch Member object")
+
+    staff_found = member and any(r.id == STAFF_ROLE_ID for r in member.roles)
+    lines.append(f"\n**Looking for ID:** `{STAFF_ROLE_ID}`")
+    lines.append(f"**Result:** {'✅ PASS' if staff_found else '❌ FAIL'}")
+    await interaction.response.send_message("\n".join(lines), ephemeral=True)
 
 
 # ── RECYCLE TURFS ─────────────────────────────────────────────────────────────

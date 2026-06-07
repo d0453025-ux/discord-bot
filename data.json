@@ -10,5 +10,15 @@
         "tokens": 0,
         "last_daily": null,
         "daily_streak": 0
-    }
+    },
+    "_recycleturfs": [
+        {
+            "name": "9",
+            "price": "9",
+            "description": "9"
+        }
+    ],
+    "_staff_users": [
+        1496629138080006256
+    ]
 }

@@ -456,6 +456,84 @@ async def ping(interaction: discord.Interaction):
     await interaction.response.send_message(f"🏓 Pong! Latency: **{latency}ms**")
 
 
+# ── RECYCLE TURFS ─────────────────────────────────────────────────────────────
+
+def get_recycleturfs():
+    data = get_data()
+    return data.get("_recycleturfs", [])
+
+def save_recycleturf(name, price, description):
+    data = get_data()
+    if "_recycleturfs" not in data:
+        data["_recycleturfs"] = []
+    data["_recycleturfs"].append({"name": name, "price": price, "description": description})
+    save_data(data)
+
+@tree.command(name="recycleturf", description="Show all available recycled turfs for sale")
+async def recycleturf(interaction: discord.Interaction):
+    turfs = get_recycleturfs()
+    embed = discord.Embed(
+        title="♻️ RECYCLE TURFS",
+        description="Turfs that have already been built and are available to buy:",
+        color=discord.Color(0x808080)
+    )
+    if not turfs:
+        embed.description = "♻️ **No recycled turfs available right now.**\nCheck back later!"
+    else:
+        for i, turf in enumerate(turfs, 1):
+            embed.add_field(
+                name=f"🏠 {i}. {turf['name']} — {turf['price']} Robux",
+                value=turf['description'],
+                inline=False
+            )
+        embed.set_footer(text=f"{len(turfs)} turf(s) available | DM staff to buy")
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name="recycleturf_add", description="Add a recycled turf to the list (Staff only)")
+@app_commands.describe(
+    name="Name/type of the turf (e.g. Mid Turf)",
+    price="Price in Robux",
+    description="Description of the turf (rooms, extras, etc.)"
+)
+async def recycleturf_add(interaction: discord.Interaction, name: str, price: str, description: str):
+    if not has_staff_role(interaction):
+        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
+        return
+    if len(name) > 50:
+        await interaction.response.send_message("❌ Name too long (max 50 characters).", ephemeral=True)
+        return
+    if len(description) > 300:
+        await interaction.response.send_message("❌ Description too long (max 300 characters).", ephemeral=True)
+        return
+    save_recycleturf(name, price, description)
+    embed = discord.Embed(
+        title="✅ Recycle Turf Added",
+        color=discord.Color(0x808080)
+    )
+    embed.add_field(name="🏠 Turf", value=name, inline=True)
+    embed.add_field(name="💰 Price", value=f"{price} Robux", inline=True)
+    embed.add_field(name="📝 Description", value=description, inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@tree.command(name="recycleturf_remove", description="Remove a recycled turf from the list (Staff only)")
+@app_commands.describe(number="The number of the turf to remove (use /recycleturf to see the numbers)")
+async def recycleturf_remove(interaction: discord.Interaction, number: int):
+    if not has_staff_role(interaction):
+        await interaction.response.send_message(f"❌ You need the **{STAFF_ROLE_NAME}** role to use this command.", ephemeral=True)
+        return
+    data = get_data()
+    turfs = data.get("_recycleturfs", [])
+    if not turfs:
+        await interaction.response.send_message("❌ No recycled turfs to remove.", ephemeral=True)
+        return
+    if number < 1 or number > len(turfs):
+        await interaction.response.send_message(f"❌ Invalid number. There are **{len(turfs)}** turfs listed.", ephemeral=True)
+        return
+    removed = turfs.pop(number - 1)
+    data["_recycleturfs"] = turfs
+    save_data(data)
+    await interaction.response.send_message(f"✅ Removed **{removed['name']}** from the recycle turf list.", ephemeral=True)
+
 token = os.environ.get("DISCORD_TOKEN")
 if not token:
     raise ValueError("DISCORD_TOKEN environment variable is not set.")

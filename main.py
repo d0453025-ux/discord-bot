@@ -112,7 +112,7 @@ def _check_rate_limit(user_id: int) -> bool:
     return True
 
 STAFF_ROLE_NAME = "HCBotacces"
-STAFF_ROLE_ID = 1513285028606640250
+STAFF_ROLE_ID = 1513292437462978690
 
 
 async def has_staff_role(interaction: discord.Interaction) -> bool:

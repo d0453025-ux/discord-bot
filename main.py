@@ -223,6 +223,8 @@ GAME_AND_LINKS = """
 @bot.event
 async def on_ready():
     await tree.sync()
+    for guild in bot.guilds:
+        await tree.sync(guild=guild)
     print(f"✅ Bot is ONLINE as {bot.user}")
 
 @tree.command(name="prices", description="Show the price menu")

@@ -147,24 +147,21 @@ def save_data(data):
 
 NORMAL_PRICES = """
 **🛒 SHOP — CUSTOM WEAPONS**
-🔫 **Custom Draco** — 250 Robux
+🔫 **Tec 9 SG** — 200Robux
 ┣ 20 Base Spawns
 ┗ Name, Level, Laser/Glow Effects, Trails
 
-🔫 **Custom SG** — 300 Robux
+🔫 **Custom SG** — 370 Robux
 ┣ 25 Base Spawns
 ┗ Name, Level, Laser/Glow Effects
 
-🔫 **Custom Golden Gun** — 350 Robux
+🔫 **Custom Golden Gun SG** — 400 Robux
 ┣ 25 Base Spawns
 ┗ Name, Level, Laser/Glow Effects, Golden Finish
 
 ─────────────────────────
 **🔧 BUNDLES & ADD-ONS**
-📦 Custom Name + Level Bundle — 150 Robux
-✨ Laser / Glow / Trail Effects — 100–150 Robux each
-➕ Extra Spawns (+5) — 75 Robux (stackable up to 5x)
-
+none
 ─────────────────────────
 **💵 IN-GAME ITEMS**
 💰 Small Cash (10k) — 50 Robux

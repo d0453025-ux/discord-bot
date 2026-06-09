@@ -505,10 +505,25 @@ async def rules(interaction: discord.Interaction):
 @tree.command(name="ing_rules", description="Show the in-game rules")
 async def ing_rules(interaction: discord.Interaction):
     embed = discord.Embed(
-        title="🎮 IN-GAME RULES",
-        description="Coming soon — in-game rules will be posted here.",
+        title="🎮 HOOD CONFLICT — IN-GAME RULES",
         color=discord.Color(0x808080)
     )
+    embed.add_field(name="✅ Allowed", value=(
+        "➤ FPS Unlockers/Shaders ARE allowed. They will not get you banned."
+    ), inline=False)
+    embed.add_field(name="🚫 Chat & Behaviour", value=(
+        "➤ Excessive spam, bypassing swears, discriminatory remarks, threats and NSFW remarks are not allowed under any circumstances.\n"
+        "➤ Misusing car radios to play bypassed audios or extremely loud sounds at spawn is disallowed and may result in a temporary ban."
+    ), inline=False)
+    embed.add_field(name="📢 No Advertising", value=(
+        "➤ Advertising other groups or games (including Roblox groups that require Discords) is not allowed.\n"
+        "➤ Advertising in direct messages is also not allowed."
+    ), inline=False)
+    embed.add_field(name="⚠️ Miscellaneous Rules", value=(
+        "➤ Impersonation of Staff is an offense and can result in kicks or temporary bans.\n"
+        "➤ Using alternate accounts to evade bans will result in an unappealable ban of your alt and possibly your main.\n"
+        "➤ All actions taken on your account are assumed to be your own — keep your account secure."
+    ), inline=False)
     await interaction.response.send_message(embed=embed)
 
 @tree.command(name="staffcheck", description="Check if you have staff access")

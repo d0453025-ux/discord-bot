@@ -460,6 +460,57 @@ async def ping(interaction: discord.Interaction):
     latency = round(bot.latency * 1000)
     await interaction.response.send_message(f"🏓 Pong! Latency: **{latency}ms**")
 
+@tree.command(name="rules", description="Show the server rules")
+async def rules(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="📋 SERVER RULES",
+        description="These rules are intended to keep the server in-order and are always subject to change. They are enforced at moderator discretion, failure to comply will result in punishment.",
+        color=discord.Color(0x808080)
+    )
+    embed.add_field(name="🤝 Stay civil and treat users with respect", value=(
+        "➤ Treat others the way you want to be treated.\n"
+        "➤ Trolling, Doxxing, Personal Attacks, Racism, Homophobia, Death threats and similar actions will not be tolerated. (This includes jokes)\n"
+        "➤ Attacking users through DMs is also prohibited.\n"
+        "➤ Don't be toxic and use common sense."
+    ), inline=False)
+    embed.add_field(name="💬 Keep chat tidy and appropriate", value=(
+        "➤ Keep channels to their dedicated languages.\n"
+        "➤ No spamming or mindless posting, stay on topic and use the correct channels.\n"
+        "➤ No advertising Discord/Roblox groups in server or DMs.\n"
+        "➤ Refrain from discussing Politics, Religion, and other controversial topics.\n"
+        "➤ Severe arguments and outbursts will not be tolerated.\n"
+        "➤ Refrain from sensitive topics such as depression, self-harm, suicide, etc.\n"
+        "➤ Create reports with evidence rather than public callouts."
+    ), inline=False)
+    embed.add_field(name="🔞 Inappropriate content is prohibited", value=(
+        "➤ This includes extreme violence, sexual content, gore, and other sensitive content.\n"
+        "➤ Heavy NSFW jokes and comments are not allowed.\n"
+        "➤ You may be asked to change your bio, avatar, or name if deemed unfit."
+    ), inline=False)
+    embed.add_field(name="🚫 No discussion or distribution of exploits", value=(
+        "➤ Discussion of exploits is prohibited.\n"
+        "➤ Attempting to buy/sell exploiting software will result in an immediate ban in server and in game."
+    ), inline=False)
+    embed.add_field(name="📢 Only contact the moderation team when necessary", value=(
+        "➤ Only ping staff if it is completely necessary.\n"
+        "➤ Pinging mods without reason will be considered trolling.\n"
+        "➤ Understand that mods may not always be available, refrain from harassing staff."
+    ), inline=False)
+    embed.add_field(name="⚠️ Other rules", value=(
+        "➤ No gambling for items with owners.\n"
+        "➤ No bringing arguments from other Discord servers to this one."
+    ), inline=False)
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name="ing_rules", description="Show the in-game rules")
+async def ing_rules(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🎮 IN-GAME RULES",
+        description="Coming soon — in-game rules will be posted here.",
+        color=discord.Color(0x808080)
+    )
+    await interaction.response.send_message(embed=embed)
+
 @tree.command(name="staffcheck", description="Check if you have staff access")
 async def staffcheck(interaction: discord.Interaction):
     uid = interaction.user.id
